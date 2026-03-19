@@ -240,6 +240,54 @@ function poseHeavyRecovery(ctx: CanvasRenderingContext2D, _anim: AnimationFrame,
   head(ctx, 2, -102, 14, c.head);
 }
 
+// -- Fireball poses --
+
+function poseFireballStartup(ctx: CanvasRenderingContext2D, _anim: AnimationFrame, c: SpriteColors): void {
+  // Both hands pulled back, gathering energy
+  limb(ctx, -4, -86, 8, 28, c.limb, -0.4);
+  limb(ctx, 4, -86, 8, 28, c.limb, -0.4);
+  limb(ctx, -8, -40, 10, 40, c.limb, -0.1);
+  limb(ctx, 8, -40, 10, 40, c.limb, 0.1);
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-15, -90, 30, 50);
+  // Hands together behind
+  fist(ctx, -2, -60, 6, c.fist);
+  fist(ctx, 4, -60, 6, c.fist);
+  // Energy glow between hands
+  ctx.fillStyle = "rgba(255, 255, 100, 0.6)";
+  ctx.beginPath();
+  ctx.arc(1, -58, 8, 0, Math.PI * 2);
+  ctx.fill();
+  head(ctx, -2, -102, 14, c.head);
+}
+
+function poseFireballActive(ctx: CanvasRenderingContext2D, _anim: AnimationFrame, c: SpriteColors): void {
+  // Thrust hands forward, releasing projectile
+  limb(ctx, -6, -86, 8, 28, c.limb, 0.1);
+  limb(ctx, 10, -82, 8, 32, c.limb, 1.3);
+  limb(ctx, -8, -40, 10, 40, c.limb, -0.15);
+  limb(ctx, 10, -40, 10, 40, c.limb, 0.2);
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-14, -90, 30, 50);
+  // Extended fists
+  fist(ctx, 10 + Math.sin(1.3) * 34, -82 + Math.cos(1.3) * 34, 7, c.fist);
+  fist(ctx, -6, -58, 5, c.fist);
+  head(ctx, 3, -102, 14, c.head);
+}
+
+function poseFireballRecovery(ctx: CanvasRenderingContext2D, _anim: AnimationFrame, c: SpriteColors): void {
+  // Arms returning to neutral
+  limb(ctx, -6, -86, 8, 30, c.limb, -0.1);
+  limb(ctx, 8, -84, 8, 30, c.limb, 0.5);
+  limb(ctx, -8, -40, 10, 40, c.limb, -0.05);
+  limb(ctx, 8, -40, 10, 40, c.limb, 0.05);
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-15, -90, 30, 50);
+  fist(ctx, 8 + Math.sin(0.5) * 32, -84 + Math.cos(0.5) * 32, 5, c.fist);
+  fist(ctx, -8, -56, 5, c.fist);
+  head(ctx, 1, -102, 14, c.head);
+}
+
 // -- Kick poses --
 
 function poseLightKickStartup(ctx: CanvasRenderingContext2D, _anim: AnimationFrame, c: SpriteColors): void {
@@ -379,6 +427,9 @@ const ATTACK_POSES: Record<string, PoseFn> = {
   heavyKick_startup: poseHeavyKickStartup,
   heavyKick_active: poseHeavyKickActive,
   heavyKick_recovery: poseHeavyKickRecovery,
+  fireball_startup: poseFireballStartup,
+  fireball_active: poseFireballActive,
+  fireball_recovery: poseFireballRecovery,
 };
 
 // -- Pose lookup --
@@ -393,4 +444,5 @@ const POSE_MAP: Record<string, PoseFn> = {
   heavyPunch: poseAttack("heavyPunch"),
   lightKick: poseAttack("lightKick"),
   heavyKick: poseAttack("heavyKick"),
+  fireball: poseAttack("fireball"),
 };

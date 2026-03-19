@@ -7,6 +7,7 @@ import {
   MoveData,
   CharacterDef,
   BufferedInput,
+  Projectile,
   CHARACTERS,
   BUFFER_WINDOW,
   MAX_COMBO_SCALING,
@@ -45,7 +46,12 @@ function wantsJump(f: FighterState, input: Input): boolean {
   return input.up && !f.jumpHeld && f.grounded;
 }
 
-function wantsAttack(input: Input): string | null {
+function wantsAttack(input: Input, fighter?: FighterState): string | null {
+  // Special move: down + forward + lightPunch = fireball
+  if (fighter && input.down && input.lightPunch) {
+    const forward = fighter.facing === 1 ? input.right : input.left;
+    if (forward && charDef(fighter).moves["fireball"]) return "fireball";
+  }
   if (input.lightPunch) return "lightPunch";
   if (input.heavyPunch) return "heavyPunch";
   if (input.lightKick) return "lightKick";
@@ -54,7 +60,7 @@ function wantsAttack(input: Input): string | null {
 }
 
 function tryAttack(f: FighterState, input: Input): FighterState | null {
-  const move = wantsAttack(input);
+  const move = wantsAttack(input, f);
   if (!move || !charDef(f).moves[move]) return null;
   return enter(f, "attacking", input, { activeMove: move, velocity: { x: 0, y: 0 }, inputBuffer: [], chainCount: 0 });
 }
@@ -83,7 +89,7 @@ function canChainInto(f: FighterState, nextMoveId: string): boolean {
 
 function tryChain(f: FighterState, input: Input): FighterState | null {
   // Try direct input first
-  const moveId = wantsAttack(input);
+  const moveId = wantsAttack(input, f);
   if (moveId && canChainInto(f, moveId)) {
     const newChain = charDef(f).moves[moveId].weight <= 1 ? f.chainCount + 1 : 0;
     return enter(f, "attacking", input, {
@@ -110,7 +116,7 @@ function tryChain(f: FighterState, input: Input): FighterState | null {
 // -- Input buffer --
 
 function bufferInput(f: FighterState, input: Input, frame: number): FighterState {
-  const move = wantsAttack(input);
+  const move = wantsAttack(input, f);
   let buffer = f.inputBuffer.filter(b => frame - b.frame < BUFFER_WINDOW);
   if (move) {
     buffer = [...buffer, { move, frame }];
@@ -413,16 +419,114 @@ function resolveHitsWithStop(f0: FighterState, f1: FighterState): [FighterState,
   return [f0, f1, hitstop];
 }
 
+// -- Projectile spawning --
+
+function spawnProjectiles(
+  fighters: [FighterState, FighterState],
+  existing: Projectile[],
+): Projectile[] {
+  let projectiles = [...existing];
+  for (let i = 0; i < 2; i++) {
+    const f = fighters[i];
+    if (f.state !== "attacking" || !f.activeMove) continue;
+    const move = charDef(f).moves[f.activeMove];
+    if (!move?.projectile) continue;
+    // Spawn on first active frame only
+    if (f.stateFrame !== move.startup) continue;
+    const p = move.projectile;
+    projectiles.push({
+      position: {
+        x: f.position.x + 30 * f.facing,
+        y: f.position.y + p.offsetY,
+      },
+      velocity: { x: p.speed * f.facing, y: 0 },
+      width: p.width,
+      height: p.height,
+      damage: move.damage,
+      hitstun: move.hitstun,
+      hitstop: move.hitstop,
+      knockback: move.knockback,
+      owner: i as 0 | 1,
+      lifetime: p.lifetime,
+    });
+  }
+  return projectiles;
+}
+
+// -- Projectile simulation --
+
+function updateProjectiles(projectiles: Projectile[]): Projectile[] {
+  return projectiles
+    .map(p => ({
+      ...p,
+      position: { x: p.position.x + p.velocity.x, y: p.position.y + p.velocity.y },
+      lifetime: p.lifetime - 1,
+    }))
+    .filter(p => p.lifetime > 0 && p.position.x > 0 && p.position.x < STAGE_WIDTH);
+}
+
+// -- Projectile vs fighter collision --
+
+function resolveProjectileHits(
+  fighters: [FighterState, FighterState],
+  projectiles: Projectile[],
+): { fighters: [FighterState, FighterState]; projectiles: Projectile[]; hitstop: number } {
+  let [f0, f1] = fighters;
+  let remaining = [...projectiles];
+  let hitstop = 0;
+
+  for (let i = remaining.length - 1; i >= 0; i--) {
+    const p = remaining[i];
+    const targetIdx = p.owner === 0 ? 1 : 0;
+    const target = targetIdx === 0 ? f0 : f1;
+    const hurtbox = deriveHurtbox(target);
+    const projRect: Rect = {
+      x: p.position.x - p.width / 2,
+      y: p.position.y - p.height / 2,
+      w: p.width,
+      h: p.height,
+    };
+
+    if (rectsOverlap(projRect, hurtbox)) {
+      const combo = target.comboCount + 1;
+      const scale = Math.max(0, 1 - DAMAGE_SCALE_PER_HIT * Math.min(target.comboCount, MAX_COMBO_SCALING));
+      const stunScale = Math.max(0.3, 1 - HITSTUN_SCALE_PER_HIT * Math.min(target.comboCount, MAX_COMBO_SCALING));
+      const damage = Math.round(p.damage * scale);
+      const stun = Math.round(p.hitstun * stunScale);
+      const newHealth = Math.max(0, target.health - damage);
+      const kbDir = p.velocity.x > 0 ? 1 : -1;
+
+      console.log(`P${p.owner + 1} fireball hit P${targetIdx + 1}: ${target.health} → ${newHealth} (-${damage}) combo:${combo}`);
+
+      const hitTarget: FighterState = {
+        ...target,
+        health: newHealth,
+        state: "hitstun",
+        stateFrame: 0,
+        hitstunDuration: stun,
+        comboCount: combo,
+        velocity: { x: p.knockback * kbDir, y: 0 },
+        activeMove: null,
+      };
+
+      if (targetIdx === 0) f0 = hitTarget; else f1 = hitTarget;
+      hitstop = Math.max(hitstop, p.hitstop);
+      remaining.splice(i, 1);
+    }
+  }
+
+  return { fighters: [f0, f1], projectiles: remaining, hitstop };
+}
+
 // -- Top-level simulate: pure (GameState, Inputs) → GameState --
 
 export function simulate(state: GameState, inputs: [Input, Input]): GameState {
   // Hitstop: freeze both fighters, just decrement the counter
   if (state.hitstop > 0) {
-    // Still buffer inputs during hitstop so buffered attacks feel responsive
     let [f0, f1] = state.fighters;
     f0 = bufferInput(f0, inputs[0], state.frame);
     f1 = bufferInput(f1, inputs[1], state.frame);
-    return { frame: state.frame + 1, fighters: [f0, f1], hitstop: state.hitstop - 1 };
+    return { frame: state.frame + 1, fighters: [f0, f1], projectiles: state.projectiles, hitstop: state.hitstop - 1 };
   }
 
   let [f0, f1] = state.fighters;
@@ -443,9 +547,17 @@ export function simulate(state: GameState, inputs: [Input, Input]): GameState {
   f0 = integrate(f0);
   f1 = integrate(f1);
 
-  // Hit detection
+  // Hit detection (melee)
   let hitstop = 0;
   [f0, f1, hitstop] = resolveHitsWithStop(f0, f1);
+
+  // Projectiles: spawn, move, collide
+  let projectiles = spawnProjectiles([f0, f1], state.projectiles);
+  projectiles = updateProjectiles(projectiles);
+  const projResult = resolveProjectileHits([f0, f1], projectiles);
+  [f0, f1] = projResult.fighters;
+  projectiles = projResult.projectiles;
+  hitstop = Math.max(hitstop, projResult.hitstop);
 
   // Pushbox
   [f0, f1] = resolvePush(f0, f1);
@@ -454,5 +566,5 @@ export function simulate(state: GameState, inputs: [Input, Input]): GameState {
   f0 = updateFacing(f0, f1);
   f1 = updateFacing(f1, f0);
 
-  return { frame: state.frame + 1, fighters: [f0, f1], hitstop };
+  return { frame: state.frame + 1, fighters: [f0, f1], projectiles, hitstop };
 }

@@ -29,6 +29,13 @@ export type MoveData = {
   knockback: number;
   weight: number;  // 1=light, 2=heavy — controls cancel routes
   hitbox: { offsetX: number; offsetY: number; w: number; h: number };
+  projectile?: {
+    speed: number;
+    width: number;
+    height: number;
+    lifetime: number;  // frames before despawn
+    offsetY: number;   // spawn height relative to fighter top
+  };
 };
 
 // -- Character definition --
@@ -53,6 +60,8 @@ export const CHARACTERS: Record<string, CharacterDef> = {
       heavyPunch: { startup: 8, active: 4, recovery: 16, damage: 12, hitstun: 20, hitstop: 7, knockback: 7, weight: 2, hitbox: { offsetX: 20, offsetY: 15, w: 60, h: 28 } },
       lightKick:  { startup: 4, active: 3, recovery: 8,  damage: 5,  hitstun: 12, hitstop: 4, knockback: 4, weight: 1, hitbox: { offsetX: 20, offsetY: 55, w: 55, h: 18 } },
       heavyKick:  { startup: 10, active: 5, recovery: 18, damage: 14, hitstun: 22, hitstop: 8, knockback: 9, weight: 2, hitbox: { offsetX: 15, offsetY: 45, w: 70, h: 25 } },
+      fireball:   { startup: 10, active: 2, recovery: 20, damage: 8,  hitstun: 16, hitstop: 5, knockback: 5, weight: 3, hitbox: { offsetX: 30, offsetY: 35, w: 30, h: 20 },
+        projectile: { speed: 6, width: 24, height: 20, lifetime: 90, offsetY: 35 } },
     },
   },
 };
@@ -81,9 +90,23 @@ export type FighterState = {
   characterId: string;
 };
 
+export type Projectile = {
+  position: { x: number; y: number };
+  velocity: { x: number; y: number };
+  width: number;
+  height: number;
+  damage: number;
+  hitstun: number;
+  hitstop: number;
+  knockback: number;
+  owner: 0 | 1;
+  lifetime: number;
+};
+
 export type GameState = {
   frame: number;
   fighters: [FighterState, FighterState];
+  projectiles: Projectile[];
   hitstop: number;
 };
 

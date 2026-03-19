@@ -162,6 +162,25 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState): void {
   drawFighter(ctx, state.fighters[0], COLORS[0], state.hitstop);
   drawFighter(ctx, state.fighters[1], COLORS[1], state.hitstop);
 
+  // Projectiles
+  for (const p of state.projectiles) {
+    const color = COLORS[p.owner];
+    const glow = lightenColor(color, 0.5);
+    const px = p.position.x - p.width / 2;
+    const py = p.position.y - p.height / 2;
+    // Glow
+    ctx.fillStyle = glow;
+    ctx.globalAlpha = 0.4;
+    ctx.fillRect(px - 3, py - 3, p.width + 6, p.height + 6);
+    ctx.globalAlpha = 1;
+    // Core
+    ctx.fillStyle = color;
+    ctx.fillRect(px, py, p.width, p.height);
+    // Bright center
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(px + 4, py + 4, p.width - 8, p.height - 8);
+  }
+
   // Health bars
   drawHealthBars(ctx, state.fighters);
 

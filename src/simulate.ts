@@ -9,6 +9,10 @@ import {
   BufferedInput,
   Projectile,
   CHARACTERS,
+  THROW_RANGE,
+  THROW_DAMAGE,
+  THROW_DURATION,
+  THROW_HITSTOP,
   BUFFER_WINDOW,
   MAX_COMBO_SCALING,
   DAMAGE_SCALE_PER_HIT,
@@ -75,10 +79,16 @@ function canChainInto(f: FighterState, nextMoveId: string): boolean {
   const next = cd.moves[nextMoveId];
   if (!current || !next) return false;
 
-  // Heavy moves are enders — cannot cancel
+  // Specials (weight 3) are enders — cannot cancel
+  if (current.weight >= 3) return false;
+
+  // Heavy into special — always allowed (light → heavy → special)
+  if (current.weight === 2 && next.weight >= 3) return true;
+
+  // Heavy into anything else — no
   if (current.weight >= 2) return false;
 
-  // Light into heavy — always allowed
+  // Light into heavier — always allowed
   if (next.weight > current.weight) return true;
 
   // Light into light — limited chain count
@@ -111,6 +121,24 @@ function tryChain(f: FighterState, input: Input): FighterState | null {
   }
 
   return null;
+}
+
+// -- Throw detection (needs opponent state, checked in simulate) --
+
+function canThrow(attacker: FighterState, defender: FighterState, input: Input): boolean {
+  // Forward + heavyPunch at close range
+  const forward = attacker.facing === 1 ? input.right : input.left;
+  if (!forward || !input.heavyPunch) return false;
+  // Don't trigger fireball input (needs down too)
+  if (input.down) return false;
+  // Must be in a throwable grounded state
+  const throwable: StateId[] = ["idle", "walking", "crouching"];
+  if (!throwable.includes(attacker.state)) return false;
+  if (!throwable.includes(defender.state) && defender.state !== "attacking") return false;
+  if (!attacker.grounded || !defender.grounded) return false;
+  // Range check
+  const dist = Math.abs(attacker.position.x - defender.position.x);
+  return dist <= THROW_RANGE;
 }
 
 // -- Input buffer --
@@ -180,6 +208,15 @@ const FSM: Record<StateId, StateHandler> = {
       return enter(f, "idle", input, { velocity: { x: 0, y: 0 } });
     }
 
+    // Air attack — jumpKick on any kick button
+    if ((input.lightKick || input.heavyKick) && charDef(f).moves["jumpKick"]) {
+      return enter(f, "attacking", input, {
+        activeMove: "jumpKick",
+        inputBuffer: [],
+        chainCount: 0,
+      });
+    }
+
     const cd = charDef(f);
     let vx = f.velocity.x;
     if (input.left) vx -= cd.airControl;
@@ -227,7 +264,11 @@ const FSM: Record<StateId, StateHandler> = {
       }
     }
 
-    return tick(f, input, { velocity: { x: 0, y: 0 } });
+    // Air attacks keep gravity, ground attacks lock in place
+    if (f.grounded) {
+      return tick(f, input, { velocity: { x: 0, y: 0 } });
+    }
+    return tick(f, input);
   },
 
   hitstun(f, input) {
@@ -257,9 +298,27 @@ const FSM: Record<StateId, StateHandler> = {
   },
 
   ko(f, input) {
-    // KO: no input accepted, slow slide to stop
     const vx = f.velocity.x * 0.9;
     return tick(f, input, { velocity: { x: Math.abs(vx) < 0.1 ? 0 : vx, y: 0 } });
+  },
+
+  throwing(f, input) {
+    // Throw animation plays for THROW_DURATION frames
+    if (f.stateFrame >= THROW_DURATION) {
+      return enter(f, "idle", input, { activeMove: null, velocity: { x: 0, y: 0 } });
+    }
+    return tick(f, input, { velocity: { x: 0, y: 0 } });
+  },
+
+  thrown(f, input) {
+    // Thrown: locked until throw duration ends, then hitstun
+    if (f.stateFrame >= THROW_DURATION) {
+      return enter(f, "hitstun", input, {
+        hitstunDuration: 15,
+        velocity: { x: -f.facing * 6, y: 0 },
+      });
+    }
+    return tick(f, input, { velocity: { x: 0, y: 0 } });
   },
 };
 
@@ -306,7 +365,7 @@ function integrate(fighter: FighterState): FighterState {
 
 function updateFacing(fighter: FighterState, opponent: FighterState): FighterState {
   // Lock facing during attacks and hitstun — prevents mid-swing flip
-  if (fighter.state === "attacking" || fighter.state === "hitstun") return fighter;
+  if (fighter.state === "attacking" || fighter.state === "hitstun" || fighter.state === "throwing" || fighter.state === "thrown" || fighter.state === "ko") return fighter;
   const facing = opponent.position.x > fighter.position.x ? 1 : -1;
   return facing !== fighter.facing ? { ...fighter, facing } : fighter;
 }
@@ -524,6 +583,53 @@ function resolveProjectileHits(
   return { fighters: [f0, f1], projectiles: remaining, hitstop };
 }
 
+// -- Throw resolution --
+
+function resolveThrows(
+  f0: FighterState, f1: FighterState,
+  inputs: [Input, Input],
+): [FighterState, FighterState, number] {
+  let hitstop = 0;
+
+  // Check P1 throwing P2
+  if (canThrow(f0, f1, inputs[0])) {
+    const newHealth = Math.max(0, f1.health - THROW_DAMAGE);
+    console.log(`P1 throw P2: ${f1.health} → ${newHealth} (-${THROW_DAMAGE})`);
+    hitstop = THROW_HITSTOP;
+    f0 = { ...f0, state: "throwing", stateFrame: 0, activeMove: "throw", velocity: { x: 0, y: 0 } };
+    f1 = {
+      ...f1,
+      health: newHealth,
+      state: newHealth <= 0 ? "ko" : "thrown",
+      stateFrame: 0,
+      velocity: { x: 0, y: 0 },
+      activeMove: null,
+      comboCount: f1.comboCount + 1,
+    };
+    return [f0, f1, hitstop];
+  }
+
+  // Check P2 throwing P1
+  if (canThrow(f1, f0, inputs[1])) {
+    const newHealth = Math.max(0, f0.health - THROW_DAMAGE);
+    console.log(`P2 throw P1: ${f0.health} → ${newHealth} (-${THROW_DAMAGE})`);
+    hitstop = THROW_HITSTOP;
+    f1 = { ...f1, state: "throwing", stateFrame: 0, activeMove: "throw", velocity: { x: 0, y: 0 } };
+    f0 = {
+      ...f0,
+      health: newHealth,
+      state: newHealth <= 0 ? "ko" : "thrown",
+      stateFrame: 0,
+      velocity: { x: 0, y: 0 },
+      activeMove: null,
+      comboCount: f0.comboCount + 1,
+    };
+    return [f0, f1, hitstop];
+  }
+
+  return [f0, f1, 0];
+}
+
 // -- Top-level simulate: pure (GameState, Inputs) → GameState --
 
 export function simulate(state: GameState, inputs: [Input, Input]): GameState {
@@ -545,6 +651,12 @@ export function simulate(state: GameState, inputs: [Input, Input]): GameState {
   f0 = applyGravity(f0);
   f1 = applyGravity(f1);
 
+  // Throw check (before FSM so it takes priority over attacks)
+  let hitstop = 0;
+  let throwStop = 0;
+  [f0, f1, throwStop] = resolveThrows(f0, f1, inputs);
+  hitstop = Math.max(hitstop, throwStop);
+
   // FSM handles transitions + movement
   f0 = fsmUpdate(f0, inputs[0]);
   f1 = fsmUpdate(f1, inputs[1]);
@@ -554,7 +666,6 @@ export function simulate(state: GameState, inputs: [Input, Input]): GameState {
   f1 = integrate(f1);
 
   // Hit detection (melee)
-  let hitstop = 0;
   [f0, f1, hitstop] = resolveHitsWithStop(f0, f1);
 
   // Projectiles: spawn, move, collide

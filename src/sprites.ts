@@ -399,6 +399,94 @@ function poseHitstun(ctx: CanvasRenderingContext2D, anim: AnimationFrame, c: Spr
   head(ctx, recoil - 2, -100, 14, c.head);
 }
 
+// -- Jump kick poses --
+
+function poseJumpKickStartup(ctx: CanvasRenderingContext2D, _anim: AnimationFrame, c: SpriteColors): void {
+  // Chamber kick mid-air
+  limb(ctx, -6, -86, 8, 28, c.limb, 0.1);
+  limb(ctx, 8, -86, 8, 28, c.limb, 0.2);
+  limb(ctx, -8, -40, 10, 36, c.limb, 0.5);
+  limb(ctx, 6, -40, 10, 34, c.limb, -0.6);  // chambered
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-15, -88, 30, 48);
+  fist(ctx, -8, -58, 5, c.fist);
+  fist(ctx, 10, -58, 5, c.fist);
+  head(ctx, 0, -100, 14, c.head);
+}
+
+function poseJumpKickActive(ctx: CanvasRenderingContext2D, _anim: AnimationFrame, c: SpriteColors): void {
+  // Kick extended downward-forward
+  limb(ctx, -6, -86, 8, 28, c.limb, 0.2);
+  limb(ctx, 8, -86, 8, 28, c.limb, 0.3);
+  limb(ctx, -10, -40, 10, 36, c.limb, 0.3);  // trailing leg
+  limb(ctx, 6, -45, 11, 44, c.limb, 0.9);    // kicking leg extended down-forward
+  fist(ctx, 6 + Math.sin(0.9) * 48, -45 + Math.cos(0.9) * 48, 7, c.fist);  // foot
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-14, -88, 30, 48);
+  fist(ctx, -8, -60, 5, c.fist);
+  fist(ctx, 10, -60, 5, c.fist);
+  head(ctx, 3, -100, 14, c.head);
+}
+
+function poseJumpKickRecovery(ctx: CanvasRenderingContext2D, _anim: AnimationFrame, c: SpriteColors): void {
+  // Retracting in air
+  limb(ctx, -6, -86, 8, 28, c.limb, 0.1);
+  limb(ctx, 8, -86, 8, 28, c.limb, 0.1);
+  limb(ctx, -8, -40, 10, 36, c.limb, 0.4);
+  limb(ctx, 6, -40, 10, 38, c.limb, 0.3);
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-15, -88, 30, 48);
+  fist(ctx, -8, -58, 5, c.fist);
+  fist(ctx, 10, -58, 5, c.fist);
+  head(ctx, 1, -100, 14, c.head);
+}
+
+// -- Throw poses --
+
+function poseThrowing(ctx: CanvasRenderingContext2D, anim: AnimationFrame, c: SpriteColors): void {
+  const t = Math.min(1, anim.frame / 20);
+  // Phase 1: grab (t < 0.3), Phase 2: lift (0.3-0.7), Phase 3: slam (> 0.7)
+  const grabReach = t < 0.3 ? t / 0.3 : 1;
+  const liftAngle = t < 0.3 ? 0 : t < 0.7 ? (t - 0.3) / 0.4 * 0.8 : 0.8 - (t - 0.7) / 0.3 * 1.2;
+
+  // Legs — wide stance
+  limb(ctx, -10, -40, 10, 40, c.limb, -0.15);
+  limb(ctx, 10, -40, 10, 40, c.limb, 0.15);
+  // Torso — leaning into throw
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-16, -92, 32, 52);
+  // Arms — grabbing and lifting
+  const armAngle = grabReach * 0.8 + liftAngle;
+  limb(ctx, -4, -88, 9, 34, c.limb, armAngle - 0.2);
+  limb(ctx, 10, -88, 9, 34, c.limb, armAngle);
+  fist(ctx, 10 + Math.sin(armAngle) * 36, -88 + Math.cos(armAngle) * 36, 6, c.fist);
+  fist(ctx, -4 + Math.sin(armAngle - 0.2) * 34, -88 + Math.cos(armAngle - 0.2) * 34, 6, c.fist);
+  head(ctx, 2, -104, 14, c.head);
+}
+
+function poseThrown(ctx: CanvasRenderingContext2D, anim: AnimationFrame, c: SpriteColors): void {
+  const t = Math.min(1, anim.frame / 20);
+  // Being grabbed, lifted, then slammed
+  const liftY = t < 0.5 ? t / 0.5 * -40 : -40 + (t - 0.5) / 0.5 * 80;
+  const flipAngle = t * Math.PI * 1.5;
+
+  ctx.save();
+  ctx.translate(0, liftY);
+  ctx.rotate(flipAngle);
+
+  limb(ctx, -8, -84, 8, 30, c.limb, 0.3);
+  limb(ctx, 6, -82, 8, 28, c.limb, 0.4);
+  limb(ctx, -6, -40, 10, 38, c.limb, 0.2);
+  limb(ctx, 8, -40, 10, 38, c.limb, -0.1);
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-15, -90, 30, 50);
+  fist(ctx, -8, -54, 5, c.fist);
+  fist(ctx, 8, -54, 5, c.fist);
+  head(ctx, 0, -102, 14, c.head);
+
+  ctx.restore();
+}
+
 // -- KO pose --
 
 function poseKO(ctx: CanvasRenderingContext2D, anim: AnimationFrame, c: SpriteColors): void {
@@ -457,6 +545,9 @@ const ATTACK_POSES: Record<string, PoseFn> = {
   fireball_startup: poseFireballStartup,
   fireball_active: poseFireballActive,
   fireball_recovery: poseFireballRecovery,
+  jumpKick_startup: poseJumpKickStartup,
+  jumpKick_active: poseJumpKickActive,
+  jumpKick_recovery: poseJumpKickRecovery,
 };
 
 // -- Pose lookup --
@@ -473,4 +564,7 @@ const POSE_MAP: Record<string, PoseFn> = {
   lightKick: poseAttack("lightKick"),
   heavyKick: poseAttack("heavyKick"),
   fireball: poseAttack("fireball"),
+  jumpKick: poseAttack("jumpKick"),
+  throwing: poseThrowing,
+  thrown: poseThrown,
 };

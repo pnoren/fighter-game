@@ -200,6 +200,8 @@ const STATE_TO_ANIM: Record<string, string> = {
   crouching: "crouch",
   hitstun: "hitstun",
   ko: "ko",
+  throwing: "throwing",
+  thrown: "thrown",
 };
 
 // -- Default animation definitions (used when character doesn't override) --
@@ -210,5 +212,7 @@ export const DEFAULT_ANIMATIONS: Record<string, AnimationDef> = {
   jump:    { frames: 3, frameDuration: 6,  loop: false },
   crouch:  { frames: 1, frameDuration: 1,  loop: false },
   hitstun: { frames: 2, frameDuration: 6,  loop: false },
-  ko:      { frames: 20, frameDuration: 1, loop: false },
+  ko:       { frames: 20, frameDuration: 1, loop: false },
+  throwing: { frames: 20, frameDuration: 1, loop: false },
+  thrown:   { frames: 20, frameDuration: 1, loop: false },
 };

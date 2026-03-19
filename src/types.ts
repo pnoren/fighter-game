@@ -60,6 +60,7 @@ export const CHARACTERS: Record<string, CharacterDef> = {
       heavyPunch: { startup: 8, active: 4, recovery: 16, damage: 12, hitstun: 20, hitstop: 7, knockback: 7, weight: 2, hitbox: { offsetX: 20, offsetY: 15, w: 60, h: 28 } },
       lightKick:  { startup: 4, active: 3, recovery: 8,  damage: 5,  hitstun: 12, hitstop: 4, knockback: 4, weight: 1, hitbox: { offsetX: 20, offsetY: 55, w: 55, h: 18 } },
       heavyKick:  { startup: 10, active: 5, recovery: 18, damage: 14, hitstun: 22, hitstop: 8, knockback: 9, weight: 2, hitbox: { offsetX: 15, offsetY: 45, w: 70, h: 25 } },
+      jumpKick:   { startup: 4, active: 6, recovery: 6, damage: 8, hitstun: 14, hitstop: 5, knockback: 3, weight: 1, hitbox: { offsetX: 15, offsetY: 60, w: 50, h: 30 } },
       fireball:   { startup: 10, active: 2, recovery: 20, damage: 8,  hitstun: 16, hitstop: 5, knockback: 5, weight: 3, hitbox: { offsetX: 30, offsetY: 35, w: 30, h: 20 },
         projectile: { speed: 6, width: 24, height: 20, lifetime: 90, offsetY: 35 } },
     },
@@ -70,7 +71,12 @@ export const CHARACTERS: Record<string, CharacterDef> = {
 
 export type BufferedInput = { move: string; frame: number };
 
-export type StateId = "idle" | "walking" | "jumping" | "crouching" | "attacking" | "hitstun" | "ko";
+export type StateId = "idle" | "walking" | "jumping" | "crouching" | "attacking" | "hitstun" | "ko" | "throwing" | "thrown";
+
+export const THROW_RANGE = 70;
+export const THROW_DAMAGE = 15;
+export const THROW_DURATION = 30;
+export const THROW_HITSTOP = 6;
 
 export type FighterState = {
   position: { x: number; y: number };

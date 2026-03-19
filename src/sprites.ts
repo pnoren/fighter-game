@@ -240,6 +240,88 @@ function poseHeavyRecovery(ctx: CanvasRenderingContext2D, _anim: AnimationFrame,
   head(ctx, 2, -102, 14, c.head);
 }
 
+// -- Kick poses --
+
+function poseLightKickStartup(ctx: CanvasRenderingContext2D, _anim: AnimationFrame, c: SpriteColors): void {
+  // Weight shift — pull kicking leg back
+  limb(ctx, -6, -86, 8, 30, c.limb, -0.1);
+  limb(ctx, 8, -86, 8, 30, c.limb, 0.1);
+  limb(ctx, -8, -40, 10, 40, c.limb, 0.0);
+  limb(ctx, 8, -40, 10, 38, c.limb, -0.4);  // kicking leg cocked back
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-15, -90, 30, 50);
+  fist(ctx, -8, -56, 5, c.fist);
+  fist(ctx, 10, -56, 5, c.fist);
+  head(ctx, 0, -102, 14, c.head);
+}
+
+function poseLightKickActive(ctx: CanvasRenderingContext2D, _anim: AnimationFrame, c: SpriteColors): void {
+  // Quick snap kick — leg extended forward
+  limb(ctx, -6, -86, 8, 30, c.limb, -0.1);
+  limb(ctx, 8, -86, 8, 30, c.limb, 0.1);
+  limb(ctx, -10, -40, 10, 40, c.limb, -0.1);  // planted leg
+  limb(ctx, 6, -40, 10, 42, c.limb, 1.2);  // kicking leg extended
+  fist(ctx, 6 + Math.sin(1.2) * 44, -40 + Math.cos(1.2) * 44, 6, c.fist);  // foot
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-15, -90, 30, 50);
+  fist(ctx, -8, -56, 5, c.fist);
+  fist(ctx, 10, -56, 5, c.fist);
+  head(ctx, 2, -102, 14, c.head);
+}
+
+function poseLightKickRecovery(ctx: CanvasRenderingContext2D, _anim: AnimationFrame, c: SpriteColors): void {
+  // Leg returning
+  limb(ctx, -6, -86, 8, 30, c.limb, -0.1);
+  limb(ctx, 8, -86, 8, 30, c.limb, 0.1);
+  limb(ctx, -8, -40, 10, 40, c.limb, -0.05);
+  limb(ctx, 8, -40, 10, 40, c.limb, 0.5);
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-15, -90, 30, 50);
+  fist(ctx, -8, -56, 5, c.fist);
+  fist(ctx, 10, -56, 5, c.fist);
+  head(ctx, 0, -102, 14, c.head);
+}
+
+function poseHeavyKickStartup(ctx: CanvasRenderingContext2D, _anim: AnimationFrame, c: SpriteColors): void {
+  // Big wind up — torso rotates, leg chambers high
+  limb(ctx, -8, -86, 8, 30, c.limb, -0.2);
+  limb(ctx, 6, -86, 8, 30, c.limb, 0.2);
+  limb(ctx, -10, -40, 10, 40, c.limb, -0.1);
+  limb(ctx, 10, -40, 10, 36, c.limb, -0.8);  // leg chambered high
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-16, -92, 32, 52);
+  fist(ctx, -10, -56, 5, c.fist);
+  fist(ctx, 8, -56, 5, c.fist);
+  head(ctx, -2, -105, 14, c.head);
+}
+
+function poseHeavyKickActive(ctx: CanvasRenderingContext2D, _anim: AnimationFrame, c: SpriteColors): void {
+  // Roundhouse — leg sweeping at mid height
+  limb(ctx, -8, -86, 8, 28, c.limb, 0.1);
+  limb(ctx, 6, -86, 8, 28, c.limb, 0.2);
+  limb(ctx, -10, -40, 11, 40, c.limb, -0.15);  // planted leg
+  limb(ctx, 8, -50, 11, 46, c.limb, 1.1);  // kicking leg sweeping
+  fist(ctx, 8 + Math.sin(1.1) * 50, -50 + Math.cos(1.1) * 50, 7, c.fist);  // foot
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-12, -90, 32, 50);
+  fist(ctx, -10, -58, 5, c.fist);
+  fist(ctx, 10, -58, 5, c.fist);
+  head(ctx, 4, -102, 14, c.head);
+}
+
+function poseHeavyKickRecovery(ctx: CanvasRenderingContext2D, _anim: AnimationFrame, c: SpriteColors): void {
+  // Settling from roundhouse
+  limb(ctx, -6, -86, 8, 30, c.limb, 0.0);
+  limb(ctx, 8, -86, 8, 30, c.limb, 0.1);
+  limb(ctx, -8, -40, 10, 40, c.limb, -0.05);
+  limb(ctx, 10, -40, 10, 42, c.limb, 0.4);
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-14, -90, 30, 50);
+  fist(ctx, -8, -56, 5, c.fist);
+  fist(ctx, 10, -56, 5, c.fist);
+  head(ctx, 2, -102, 14, c.head);
+}
+
 function poseHitstun(ctx: CanvasRenderingContext2D, anim: AnimationFrame, c: SpriteColors): void {
   const recoil = anim.frame === 0 ? -6 : -3;
   const tilt = anim.frame === 0 ? -0.15 : -0.08;
@@ -280,12 +362,18 @@ function poseAttack(moveId: string): PoseFn {
 }
 
 const ATTACK_POSES: Record<string, PoseFn> = {
-  light_startup: poseLightStartup,
-  light_active: poseLightActive,
-  light_recovery: poseLightRecovery,
-  heavy_startup: poseHeavyStartup,
-  heavy_active: poseHeavyActive,
-  heavy_recovery: poseHeavyRecovery,
+  lightPunch_startup: poseLightStartup,
+  lightPunch_active: poseLightActive,
+  lightPunch_recovery: poseLightRecovery,
+  heavyPunch_startup: poseHeavyStartup,
+  heavyPunch_active: poseHeavyActive,
+  heavyPunch_recovery: poseHeavyRecovery,
+  lightKick_startup: poseLightKickStartup,
+  lightKick_active: poseLightKickActive,
+  lightKick_recovery: poseLightKickRecovery,
+  heavyKick_startup: poseHeavyKickStartup,
+  heavyKick_active: poseHeavyKickActive,
+  heavyKick_recovery: poseHeavyKickRecovery,
 };
 
 // -- Pose lookup --
@@ -296,6 +384,8 @@ const POSE_MAP: Record<string, PoseFn> = {
   jump: poseJump,
   crouch: poseCrouch,
   hitstun: poseHitstun,
-  light: poseAttack("light"),
-  heavy: poseAttack("heavy"),
+  lightPunch: poseAttack("lightPunch"),
+  heavyPunch: poseAttack("heavyPunch"),
+  lightKick: poseAttack("lightKick"),
+  heavyKick: poseAttack("heavyKick"),
 };

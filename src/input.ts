@@ -1,7 +1,16 @@
 import { Input } from "./types.js";
 
-const P1_KEYS = { left: "KeyA", right: "KeyD", up: "KeyW", down: "KeyS", light: "KeyJ", heavy: "KeyK" };
-const P2_KEYS = { left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp", down: "ArrowDown", light: "Period", heavy: "Slash" };
+// P1: WASD + J/K/U/I    P2: Arrows + Numpad1/2/4/5
+const P1_KEYS = {
+  left: "KeyA", right: "KeyD", up: "KeyW", down: "KeyS",
+  lightPunch: "KeyJ", heavyPunch: "KeyK",
+  lightKick: "KeyU", heavyKick: "KeyI",
+};
+const P2_KEYS = {
+  left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp", down: "ArrowDown",
+  lightPunch: "Period", heavyPunch: "Slash",
+  lightKick: "Semicolon", heavyKick: "Quote",
+};
 const PLAYER_KEYS = [P1_KEYS, P2_KEYS];
 
 const held = new Set<string>();
@@ -18,7 +27,9 @@ export function readInput(player: 0 | 1): Input {
     right: held.has(keys.right),
     up: held.has(keys.up),
     down: held.has(keys.down),
-    light: held.has(keys.light),
-    heavy: held.has(keys.heavy),
+    lightPunch: held.has(keys.lightPunch),
+    heavyPunch: held.has(keys.heavyPunch),
+    lightKick: held.has(keys.lightKick),
+    heavyKick: held.has(keys.heavyKick),
   };
 }

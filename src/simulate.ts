@@ -46,8 +46,10 @@ function wantsJump(f: FighterState, input: Input): boolean {
 }
 
 function wantsAttack(input: Input): string | null {
-  if (input.light) return "light";
-  if (input.heavy) return "heavy";
+  if (input.lightPunch) return "lightPunch";
+  if (input.heavyPunch) return "heavyPunch";
+  if (input.lightKick) return "lightKick";
+  if (input.heavyKick) return "heavyKick";
   return null;
 }
 

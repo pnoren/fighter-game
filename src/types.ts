@@ -36,6 +36,7 @@ export type CharacterDef = {
   jumpVelocity: number;
   airControl: number;
   airMaxSpeed: number;
+  animations?: Record<string, { frames: number; frameDuration: number; loop: boolean }>;
 };
 
 export const CHARACTERS: Record<string, CharacterDef> = {

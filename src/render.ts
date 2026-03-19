@@ -8,9 +8,9 @@ import {
   FIGHTER_HEIGHT,
   CROUCH_HEIGHT,
   MAX_HEALTH,
-  CHARACTERS,
 } from "./types.js";
 import { deriveHurtbox, deriveHitbox } from "./simulate.js";
+import { deriveAnimation } from "./animation.js";
 
 const COLORS = ["#3498db", "#e74c3c"];
 
@@ -37,19 +37,14 @@ function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color
   ctx.closePath();
   ctx.fill();
 
-  // State label
+  // Animation-driven label
+  const anim = deriveAnimation(fighter);
   ctx.fillStyle = "#fff";
   ctx.font = "11px monospace";
   ctx.textAlign = "center";
-  let label: string = fighter.state;
-  if (fighter.state === "attacking" && fighter.activeMove) {
-    const move = CHARACTERS[fighter.characterId]?.moves[fighter.activeMove];
-    if (!move) return;
-    const frame = fighter.stateFrame;
-    let phase = "startup";
-    if (frame >= move.startup) phase = "active";
-    if (frame >= move.startup + move.active) phase = "recovery";
-    label = `${fighter.activeMove} ${phase}`;
+  let label = `${anim.name} [${anim.frame}/${anim.totalFrames}]`;
+  if (anim.phase) {
+    label = `${anim.name} ${anim.phase}`;
   }
   ctx.fillText(label, fighter.position.x, y - 6);
 
@@ -88,7 +83,6 @@ function drawHealthBars(ctx: CanvasRenderingContext2D, fighters: [FighterState, 
       ctx.fillStyle = pct > 0.3 ? "#2ecc71" : "#e74c3c";
       ctx.fillRect(x, y, barW * pct, barH);
     } else {
-      // P2 bar fills from right
       ctx.fillStyle = pct > 0.3 ? "#2ecc71" : "#e74c3c";
       ctx.fillRect(x + barW * (1 - pct), y, barW * pct, barH);
     }

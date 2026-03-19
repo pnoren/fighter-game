@@ -6,6 +6,7 @@ import {
   STAGE_FLOOR,
   FIGHTER_WIDTH,
   FIGHTER_HEIGHT,
+  MAX_HEALTH,
 } from "./types.js";
 import { initInput, readInput } from "./input.js";
 import { simulate } from "./simulate.js";
@@ -23,6 +24,9 @@ function createFighter(x: number, facing: 1 | -1, id: string): FighterState {
     grounded: true,
     jumpHeld: false,
     activeMove: null,
+    hitConfirmed: false,
+    health: MAX_HEALTH,
+    hitstunDuration: 0,
     characterId: id,
   };
 }

@@ -7,8 +7,10 @@ import {
   FIGHTER_WIDTH,
   FIGHTER_HEIGHT,
   CROUCH_HEIGHT,
+  MAX_HEALTH,
   MOVES,
 } from "./types.js";
+import { deriveHurtbox, deriveHitbox } from "./simulate.js";
 
 const COLORS = ["#3498db", "#e74c3c"];
 
@@ -49,6 +51,58 @@ function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color
     label = `${fighter.activeMove} ${phase}`;
   }
   ctx.fillText(label, fighter.position.x, y - 6);
+
+  // Debug: hurtbox (green outline)
+  const hurtbox = deriveHurtbox(fighter);
+  ctx.strokeStyle = "rgba(0, 255, 0, 0.5)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(hurtbox.x, hurtbox.y, hurtbox.w, hurtbox.h);
+
+  // Debug: hitbox (red filled)
+  const hitbox = deriveHitbox(fighter);
+  if (hitbox) {
+    ctx.fillStyle = "rgba(255, 0, 0, 0.4)";
+    ctx.fillRect(hitbox.x, hitbox.y, hitbox.w, hitbox.h);
+    ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
+    ctx.strokeRect(hitbox.x, hitbox.y, hitbox.w, hitbox.h);
+  }
+}
+
+function drawHealthBars(ctx: CanvasRenderingContext2D, fighters: [FighterState, FighterState]): void {
+  const barW = 300;
+  const barH = 20;
+  const y = 30;
+  const gap = 10;
+
+  for (let i = 0; i < 2; i++) {
+    const x = i === 0 ? gap : STAGE_WIDTH - barW - gap;
+    const pct = fighters[i].health / MAX_HEALTH;
+
+    // Background
+    ctx.fillStyle = "#333";
+    ctx.fillRect(x, y, barW, barH);
+
+    // Health fill
+    if (i === 0) {
+      ctx.fillStyle = pct > 0.3 ? "#2ecc71" : "#e74c3c";
+      ctx.fillRect(x, y, barW * pct, barH);
+    } else {
+      // P2 bar fills from right
+      ctx.fillStyle = pct > 0.3 ? "#2ecc71" : "#e74c3c";
+      ctx.fillRect(x + barW * (1 - pct), y, barW * pct, barH);
+    }
+
+    // Border
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, barW, barH);
+
+    // Label
+    ctx.fillStyle = "#fff";
+    ctx.font = "12px monospace";
+    ctx.textAlign = i === 0 ? "left" : "right";
+    ctx.fillText(`P${i + 1}`, i === 0 ? x : x + barW, y - 5);
+  }
 }
 
 export function render(ctx: CanvasRenderingContext2D, state: GameState): void {
@@ -63,6 +117,9 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState): void {
   // Fighters
   drawFighter(ctx, state.fighters[0], COLORS[0]);
   drawFighter(ctx, state.fighters[1], COLORS[1]);
+
+  // Health bars
+  drawHealthBars(ctx, state.fighters);
 
   // Frame counter
   ctx.fillStyle = "#666";

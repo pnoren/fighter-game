@@ -2,8 +2,10 @@ import {
   FighterState,
   GameState,
   Input,
+  Rect,
   StateId,
   MoveId,
+  MoveData,
   MOVES,
   GRAVITY,
   WALK_SPEED,
@@ -14,6 +16,7 @@ import {
   STAGE_WIDTH,
   FIGHTER_WIDTH,
   FIGHTER_HEIGHT,
+  CROUCH_HEIGHT,
 } from "./types.js";
 
 // -- FSM helpers --
@@ -106,19 +109,20 @@ const FSM: Record<StateId, StateHandler> = {
   },
 
   attacking(f, input) {
-    if (!f.activeMove) return enter(f, "idle", input, { activeMove: null });
+    if (!f.activeMove) return enter(f, "idle", input, { activeMove: null, hitConfirmed: false });
     const move = MOVES[f.activeMove];
     const total = move.startup + move.active + move.recovery;
-    // Attack finished — return to idle
     if (f.stateFrame >= total) {
-      return enter(f, "idle", input, { activeMove: null });
+      return enter(f, "idle", input, { activeMove: null, hitConfirmed: false });
     }
-    // Locked in place during attack
     return tick(f, input, { velocity: { x: 0, y: 0 } });
   },
 
   hitstun(f, input) {
-    return tick(f, input);
+    if (f.stateFrame >= f.hitstunDuration) {
+      return enter(f, "idle", input);
+    }
+    return tick(f, input, { velocity: { x: 0, y: 0 } });
   },
 };
 
@@ -186,6 +190,81 @@ function resolvePush(f0: FighterState, f1: FighterState): [FighterState, Fighter
   ];
 }
 
+// -- Hitbox / hurtbox derivation --
+
+export function deriveHurtbox(f: FighterState): Rect {
+  const isCrouching = f.state === "crouching";
+  const h = isCrouching ? CROUCH_HEIGHT : FIGHTER_HEIGHT;
+  const yOffset = isCrouching ? FIGHTER_HEIGHT - CROUCH_HEIGHT : 0;
+  return {
+    x: f.position.x - FIGHTER_WIDTH / 2,
+    y: f.position.y + yOffset,
+    w: FIGHTER_WIDTH,
+    h,
+  };
+}
+
+export function deriveHitbox(f: FighterState): Rect | null {
+  if (f.state !== "attacking" || !f.activeMove || f.hitConfirmed) return null;
+  const move = MOVES[f.activeMove];
+  // Only active during active frames
+  if (f.stateFrame < move.startup || f.stateFrame >= move.startup + move.active) return null;
+  const hb = move.hitbox;
+  return {
+    x: f.position.x + hb.offsetX * f.facing - (f.facing === 1 ? 0 : hb.w),
+    y: f.position.y + hb.offsetY,
+    w: hb.w,
+    h: hb.h,
+  };
+}
+
+// -- AABB collision --
+
+function rectsOverlap(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+// -- Hit resolution --
+
+function resolveHits(f0: FighterState, f1: FighterState): [FighterState, FighterState] {
+  const h0 = deriveHitbox(f0);
+  const h1 = deriveHitbox(f1);
+  const hurt0 = deriveHurtbox(f0);
+  const hurt1 = deriveHurtbox(f1);
+
+  // Check f0 hitting f1
+  if (h0 && rectsOverlap(h0, hurt1)) {
+    const move = MOVES[f0.activeMove!];
+    f0 = { ...f0, hitConfirmed: true };
+    f1 = {
+      ...f1,
+      health: Math.max(0, f1.health - move.damage),
+      state: "hitstun",
+      stateFrame: 0,
+      hitstunDuration: move.hitstun,
+      velocity: { x: 0, y: 0 },
+      activeMove: null,
+    };
+  }
+
+  // Check f1 hitting f0
+  if (h1 && rectsOverlap(h1, hurt0)) {
+    const move = MOVES[f1.activeMove!];
+    f1 = { ...f1, hitConfirmed: true };
+    f0 = {
+      ...f0,
+      health: Math.max(0, f0.health - move.damage),
+      state: "hitstun",
+      stateFrame: 0,
+      hitstunDuration: move.hitstun,
+      velocity: { x: 0, y: 0 },
+      activeMove: null,
+    };
+  }
+
+  return [f0, f1];
+}
+
 // -- Top-level simulate: pure (GameState, Inputs) → GameState --
 
 export function simulate(state: GameState, inputs: [Input, Input]): GameState {
@@ -202,6 +281,9 @@ export function simulate(state: GameState, inputs: [Input, Input]): GameState {
   // Position integration (x-axis)
   f0 = integrate(f0);
   f1 = integrate(f1);
+
+  // Hit detection
+  [f0, f1] = resolveHits(f0, f1);
 
   // Pushbox
   [f0, f1] = resolvePush(f0, f1);

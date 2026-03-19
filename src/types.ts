@@ -12,6 +12,10 @@ export const AIR_CONTROL = 0.3;
 export const AIR_MAX_SPEED = 3;
 export const CROUCH_HEIGHT = 80;
 
+// -- Geometry --
+
+export type Rect = { x: number; y: number; w: number; h: number };
+
 // -- Move data --
 
 export type MoveId = "light" | "heavy";
@@ -20,12 +24,17 @@ export type MoveData = {
   startup: number;
   active: number;
   recovery: number;
+  damage: number;
+  hitstun: number;
+  hitbox: { offsetX: number; offsetY: number; w: number; h: number };
 };
 
 export const MOVES: Record<MoveId, MoveData> = {
-  light: { startup: 4, active: 3, recovery: 8 },
-  heavy: { startup: 8, active: 4, recovery: 16 },
+  light:  { startup: 4, active: 3, recovery: 8,  damage: 5,  hitstun: 12, hitbox: { offsetX: 25, offsetY: 30, w: 50, h: 20 } },
+  heavy:  { startup: 8, active: 4, recovery: 16, damage: 12, hitstun: 20, hitbox: { offsetX: 20, offsetY: 15, w: 60, h: 30 } },
 };
+
+export const MAX_HEALTH = 100;
 
 // -- Core types --
 
@@ -40,6 +49,9 @@ export type FighterState = {
   grounded: boolean;
   jumpHeld: boolean;
   activeMove: MoveId | null;
+  hitConfirmed: boolean;
+  health: number;
+  hitstunDuration: number;
   characterId: string;
 };
 

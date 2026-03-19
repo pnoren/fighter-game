@@ -10,25 +10,33 @@ import {
   MAX_HEALTH,
 } from "./types.js";
 import { deriveHurtbox, deriveHitbox } from "./simulate.js";
-import { deriveAnimation } from "./animation.js";
+import { deriveAnimation, deriveSquashStretch } from "./animation.js";
 
 const COLORS = ["#3498db", "#e74c3c"];
 
 function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color: string): void {
   const isCrouching = fighter.state === "crouching";
-  const h = isCrouching ? CROUCH_HEIGHT : FIGHTER_HEIGHT;
+  const baseH = isCrouching ? CROUCH_HEIGHT : FIGHTER_HEIGHT;
   const yOffset = isCrouching ? FIGHTER_HEIGHT - CROUCH_HEIGHT : 0;
 
-  const x = fighter.position.x - FIGHTER_WIDTH / 2;
-  const y = fighter.position.y + yOffset;
+  // Squash/stretch from animation blend
+  const anim = deriveAnimation(fighter);
+  const ss = deriveSquashStretch(anim);
+  const w = FIGHTER_WIDTH * ss.scaleX;
+  const h = baseH * ss.scaleY;
+
+  // Anchor at feet center: x centered, y pinned to bottom
+  const baseBottom = fighter.position.y + yOffset + baseH;
+  const x = fighter.position.x - w / 2;
+  const y = baseBottom - h;
 
   // Body
   ctx.fillStyle = color;
-  ctx.fillRect(x, y, FIGHTER_WIDTH, h);
+  ctx.fillRect(x, y, w, h);
 
   // Facing indicator (small triangle on the front side)
   ctx.fillStyle = "#fff";
-  const cx = fighter.facing === 1 ? x + FIGHTER_WIDTH : x;
+  const cx = fighter.facing === 1 ? x + w : x;
   const dir = fighter.facing;
   ctx.beginPath();
   ctx.moveTo(cx, y + 15);
@@ -36,9 +44,6 @@ function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color
   ctx.lineTo(cx, y + 29);
   ctx.closePath();
   ctx.fill();
-
-  // Animation-driven label
-  const anim = deriveAnimation(fighter);
   ctx.fillStyle = "#fff";
   ctx.font = "11px monospace";
   ctx.textAlign = "center";

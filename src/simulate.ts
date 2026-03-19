@@ -6,7 +6,9 @@ import {
   StateId,
   MoveId,
   MoveData,
+  BufferedInput,
   MOVES,
+  BUFFER_WINDOW,
   GRAVITY,
   WALK_SPEED,
   JUMP_VELOCITY,
@@ -42,7 +44,24 @@ function wantsAttack(input: Input): MoveId | null {
 function tryAttack(f: FighterState, input: Input): FighterState | null {
   const move = wantsAttack(input);
   if (!move) return null;
-  return enter(f, "attacking", input, { activeMove: move, velocity: { x: 0, y: 0 } });
+  return enter(f, "attacking", input, { activeMove: move, velocity: { x: 0, y: 0 }, inputBuffer: [] });
+}
+
+// -- Input buffer --
+
+function bufferInput(f: FighterState, input: Input, frame: number): FighterState {
+  const move = wantsAttack(input);
+  let buffer = f.inputBuffer.filter(b => frame - b.frame < BUFFER_WINDOW);
+  if (move) {
+    buffer = [...buffer, { move, frame }];
+  }
+  return buffer !== f.inputBuffer ? { ...f, inputBuffer: buffer } : f;
+}
+
+function consumeBuffer(f: FighterState, input: Input): FighterState | null {
+  if (f.inputBuffer.length === 0) return null;
+  const last = f.inputBuffer[f.inputBuffer.length - 1];
+  return enter(f, "attacking", input, { activeMove: last.move, velocity: { x: 0, y: 0 }, inputBuffer: [] });
 }
 
 // -- FSM state handlers: each returns updated FighterState --
@@ -84,8 +103,12 @@ const FSM: Record<StateId, StateHandler> = {
   },
 
   jumping(f, input) {
-    // Landed — gravity set grounded=true before FSM runs
-    if (f.grounded) return enter(f, "idle", input, { velocity: { x: 0, y: 0 } });
+    // Landed — check buffer for attack, otherwise idle
+    if (f.grounded) {
+      const buffered = consumeBuffer(f, input);
+      if (buffered) return buffered;
+      return enter(f, "idle", input, { velocity: { x: 0, y: 0 } });
+    }
 
     // Air control
     let vx = f.velocity.x;
@@ -113,6 +136,9 @@ const FSM: Record<StateId, StateHandler> = {
     const move = MOVES[f.activeMove];
     const total = move.startup + move.active + move.recovery;
     if (f.stateFrame >= total) {
+      // Attack finished — check buffer for chained attack
+      const buffered = consumeBuffer(f, input);
+      if (buffered) return { ...buffered, hitConfirmed: false };
       return enter(f, "idle", input, { activeMove: null, hitConfirmed: false });
     }
     return tick(f, input, { velocity: { x: 0, y: 0 } });
@@ -120,6 +146,9 @@ const FSM: Record<StateId, StateHandler> = {
 
   hitstun(f, input) {
     if (f.stateFrame >= f.hitstunDuration) {
+      // Hitstun over — check buffer for immediate attack
+      const buffered = consumeBuffer(f, input);
+      if (buffered) return buffered;
       return enter(f, "idle", input);
     }
     return tick(f, input, { velocity: { x: 0, y: 0 } });
@@ -273,6 +302,10 @@ function resolveHits(f0: FighterState, f1: FighterState): [FighterState, Fighter
 
 export function simulate(state: GameState, inputs: [Input, Input]): GameState {
   let [f0, f1] = state.fighters;
+
+  // Buffer attack inputs
+  f0 = bufferInput(f0, inputs[0], state.frame);
+  f1 = bufferInput(f1, inputs[1], state.frame);
 
   // Gravity first — so FSM can react to landing
   f0 = applyGravity(f0);

@@ -35,6 +35,9 @@ export const MOVES: Record<MoveId, MoveData> = {
 };
 
 export const MAX_HEALTH = 100;
+export const BUFFER_WINDOW = 8;
+
+export type BufferedInput = { move: MoveId; frame: number };
 
 // -- Core types --
 
@@ -52,6 +55,7 @@ export type FighterState = {
   hitConfirmed: boolean;
   health: number;
   hitstunDuration: number;
+  inputBuffer: BufferedInput[];
   characterId: string;
 };
 

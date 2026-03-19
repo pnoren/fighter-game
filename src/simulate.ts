@@ -161,6 +161,9 @@ const FSM: Record<StateId, StateHandler> = {
     let vx = 0;
     if (input.left) vx -= speed;
     if (input.right) vx += speed;
+    // Walking backward is slower (75%) — fundamental spacing mechanic
+    const walkDir = vx > 0 ? 1 : -1;
+    if (walkDir !== f.facing) vx *= 0.75;
     return tick(f, input, { velocity: { x: vx, y: 0 } });
   },
 
@@ -290,6 +293,8 @@ function integrate(fighter: FighterState): FighterState {
 // -- Pure facing update --
 
 function updateFacing(fighter: FighterState, opponent: FighterState): FighterState {
+  // Lock facing during attacks and hitstun — prevents mid-swing flip
+  if (fighter.state === "attacking" || fighter.state === "hitstun") return fighter;
   const facing = opponent.position.x > fighter.position.x ? 1 : -1;
   return facing !== fighter.facing ? { ...fighter, facing } : fighter;
 }
@@ -364,11 +369,12 @@ function applyHit(
     `${attackerLabel} ${attacker.activeMove} hit: ${defender.health} → ${newHealth} (-${damage}) combo:${combo} scale:${(scale * 100).toFixed(0)}%`,
   );
 
-  // Knockback: push defender away from attacker
+  // Knockback: push defender away, attacker pushed back slightly
   const kb = move.knockback * attacker.facing;
+  const attackerPushback = -kb * 0.3;
 
   return [
-    { ...attacker, hitConfirmed: true },
+    { ...attacker, hitConfirmed: true, velocity: { x: attackerPushback, y: attacker.velocity.y } },
     {
       ...defender,
       health: newHealth,

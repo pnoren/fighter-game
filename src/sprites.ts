@@ -323,16 +323,21 @@ function poseHeavyKickRecovery(ctx: CanvasRenderingContext2D, _anim: AnimationFr
 }
 
 function poseHitstun(ctx: CanvasRenderingContext2D, anim: AnimationFrame, c: SpriteColors): void {
-  const recoil = anim.frame === 0 ? -6 : -3;
-  const tilt = anim.frame === 0 ? -0.15 : -0.08;
+  // Interpolate recoil: strong at start, gradually recovering
+  // anim.frame increases over hitstun; totalFrames approximates duration
+  const t = Math.min(1, anim.frame / Math.max(1, anim.totalFrames));
+  const ease = t * t; // quadratic ease-in — slow start, fast recovery
+  const recoil = -8 * (1 - ease);
+  const tilt = -0.18 * (1 - ease);
+  const armDroop = 0.5 * (1 - ease) + 0.1;
 
-  // Arms — limp
-  limb(ctx, -10 + recoil, -84, 8, 32, c.limb, 0.4);
-  limb(ctx, 6 + recoil, -82, 8, 30, c.limb, 0.3);
+  // Arms — limp, gradually recovering
+  limb(ctx, -10 + recoil, -84, 8, 32, c.limb, armDroop);
+  limb(ctx, 6 + recoil, -82, 8, 30, c.limb, armDroop * 0.8);
   // Legs — staggering
-  limb(ctx, -6, -40, 10, 40, c.limb, -0.1);
-  limb(ctx, 8, -40, 10, 40, c.limb, 0.2);
-  // Torso — recoiling
+  limb(ctx, -6, -40, 10, 40, c.limb, -0.1 * (1 - ease));
+  limb(ctx, 8, -40, 10, 40, c.limb, 0.2 * (1 - ease));
+  // Torso — recoiling then recovering
   ctx.save();
   ctx.translate(recoil, 0);
   ctx.rotate(tilt);
@@ -340,9 +345,9 @@ function poseHitstun(ctx: CanvasRenderingContext2D, anim: AnimationFrame, c: Spr
   ctx.fillRect(-15, -90, 30, 50);
   ctx.restore();
   // Fists — drooping
-  fist(ctx, -10 + recoil + Math.sin(0.4) * 32, -84 + Math.cos(0.4) * 32, 5, c.fist);
-  fist(ctx, 6 + recoil + Math.sin(0.3) * 30, -82 + Math.cos(0.3) * 30, 5, c.fist);
-  // Head — snapping back
+  fist(ctx, -10 + recoil + Math.sin(armDroop) * 32, -84 + Math.cos(armDroop) * 32, 5, c.fist);
+  fist(ctx, 6 + recoil + Math.sin(armDroop * 0.8) * 30, -82 + Math.cos(armDroop * 0.8) * 30, 5, c.fist);
+  // Head — snapping back then recovering
   head(ctx, recoil - 2, -100, 14, c.head);
 }
 

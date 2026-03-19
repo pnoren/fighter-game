@@ -255,6 +255,12 @@ const FSM: Record<StateId, StateHandler> = {
     const vx = f.velocity.x * 0.85;
     return tick(f, input, { velocity: { x: Math.abs(vx) < 0.1 ? 0 : vx, y: 0 } });
   },
+
+  ko(f, input) {
+    // KO: no input accepted, slow slide to stop
+    const vx = f.velocity.x * 0.9;
+    return tick(f, input, { velocity: { x: Math.abs(vx) < 0.1 ? 0 : vx, y: 0 } });
+  },
 };
 
 // -- Pure FSM dispatch --
@@ -384,11 +390,11 @@ function applyHit(
     {
       ...defender,
       health: newHealth,
-      state: "hitstun" as const,
+      state: newHealth <= 0 ? "ko" as const : "hitstun" as const,
       stateFrame: 0,
       hitstunDuration: hitstun,
       comboCount: combo,
-      velocity: { x: kb, y: 0 },
+      velocity: { x: kb * (newHealth <= 0 ? 1.5 : 1), y: 0 },
       activeMove: null,
     },
   ];
@@ -501,11 +507,11 @@ function resolveProjectileHits(
       const hitTarget: FighterState = {
         ...target,
         health: newHealth,
-        state: "hitstun",
+        state: newHealth <= 0 ? "ko" : "hitstun",
         stateFrame: 0,
         hitstunDuration: stun,
         comboCount: combo,
-        velocity: { x: p.knockback * kbDir, y: 0 },
+        velocity: { x: p.knockback * kbDir * (newHealth <= 0 ? 1.5 : 1), y: 0 },
         activeMove: null,
       };
 

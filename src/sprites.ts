@@ -399,6 +399,33 @@ function poseHitstun(ctx: CanvasRenderingContext2D, anim: AnimationFrame, c: Spr
   head(ctx, recoil - 2, -100, 14, c.head);
 }
 
+// -- KO pose --
+
+function poseKO(ctx: CanvasRenderingContext2D, anim: AnimationFrame, c: SpriteColors): void {
+  // Collapse to the ground over time
+  const t = Math.min(1, anim.frame / 20);
+  const ease = t * t;
+  const fallAngle = ease * 1.2;
+  const dropY = ease * 60;
+
+  ctx.save();
+  ctx.translate(0, dropY);
+  ctx.rotate(fallAngle);
+
+  // Limp body
+  limb(ctx, -8, -84, 8, 32, c.limb, 0.6);
+  limb(ctx, 6, -80, 8, 30, c.limb, 0.5);
+  limb(ctx, -6, -40, 10, 40, c.limb, 0.1);
+  limb(ctx, 8, -40, 10, 40, c.limb, 0.3);
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-15, -90, 30, 50);
+  fist(ctx, -8 + Math.sin(0.6) * 32, -84 + Math.cos(0.6) * 32, 5, c.fist);
+  fist(ctx, 6 + Math.sin(0.5) * 30, -80 + Math.cos(0.5) * 30, 5, c.fist);
+  head(ctx, -4, -100, 14, c.head);
+
+  ctx.restore();
+}
+
 // -- Attack pose dispatch (phase-aware) --
 
 function poseAttack(moveId: string): PoseFn {
@@ -440,6 +467,7 @@ const POSE_MAP: Record<string, PoseFn> = {
   jump: poseJump,
   crouch: poseCrouch,
   hitstun: poseHitstun,
+  ko: poseKO,
   lightPunch: poseAttack("lightPunch"),
   heavyPunch: poseAttack("heavyPunch"),
   lightKick: poseAttack("lightKick"),

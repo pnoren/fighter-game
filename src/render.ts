@@ -59,9 +59,9 @@ function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color
   const ss = deriveSquashStretch(anim, fighter.stateFrame);
   const colors = deriveColors(color, fighter, anim, hitstop);
 
-  // Character origin = feet center on the stage floor (or current y position)
+  // Character origin = feet center (position.y is top of character box)
   const feetX = fighter.position.x + ss.leanX * fighter.facing;
-  const feetY = STAGE_FLOOR;
+  const feetY = fighter.position.y + FIGHTER_HEIGHT;
 
   ctx.save();
 

@@ -70,7 +70,7 @@ export const CHARACTERS: Record<string, CharacterDef> = {
 
 export type BufferedInput = { move: string; frame: number };
 
-export type StateId = "idle" | "walking" | "jumping" | "crouching" | "attacking" | "hitstun";
+export type StateId = "idle" | "walking" | "jumping" | "crouching" | "attacking" | "hitstun" | "ko";
 
 export type FighterState = {
   position: { x: number; y: number };

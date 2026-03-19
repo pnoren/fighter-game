@@ -8,6 +8,8 @@ export const FIGHTER_HEIGHT = 120;
 export const GRAVITY = 0.8;
 export const WALK_SPEED = 4;
 export const JUMP_VELOCITY = -14;
+export const AIR_CONTROL = 0.3;
+export const AIR_MAX_SPEED = 3;
 export const CROUCH_HEIGHT = 80;
 
 // -- Core types --
@@ -19,6 +21,7 @@ export type FighterState = {
   state: "idle" | "walk" | "jump" | "crouch";
   stateFrame: number;
   grounded: boolean;
+  jumpHeld: boolean;
   characterId: string;
 };
 

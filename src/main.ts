@@ -21,6 +21,7 @@ function createFighter(x: number, facing: 1 | -1, id: string): FighterState {
     state: "idle",
     stateFrame: 0,
     grounded: true,
+    jumpHeld: false,
     characterId: id,
   };
 }

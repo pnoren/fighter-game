@@ -5,6 +5,8 @@ import {
   GRAVITY,
   WALK_SPEED,
   JUMP_VELOCITY,
+  AIR_CONTROL,
+  AIR_MAX_SPEED,
   STAGE_FLOOR,
   STAGE_WIDTH,
   FIGHTER_WIDTH,
@@ -14,51 +16,63 @@ import {
 // -- Pure state transition --
 
 function transitionState(fighter: FighterState, input: Input): FighterState {
-  const { state, grounded } = fighter;
+  const { state, grounded, jumpHeld } = fighter;
 
-  // Airborne → land
+  // Track whether up is held (must release before jumping again)
+  const newJumpHeld = input.up;
+
+  // Airborne — just tick stateFrame
   if (!grounded) {
-    return { ...fighter, stateFrame: fighter.stateFrame + 1 };
+    return { ...fighter, stateFrame: fighter.stateFrame + 1, jumpHeld: newJumpHeld };
   }
 
-  // Jump (only from ground states)
-  if (input.up && grounded && state !== "jump") {
+  // Jump — only on fresh press (not held from previous frame)
+  if (input.up && !jumpHeld && grounded) {
     return {
       ...fighter,
       state: "jump",
       stateFrame: 0,
-      velocity: { ...fighter.velocity, y: JUMP_VELOCITY },
+      velocity: { x: fighter.velocity.x, y: JUMP_VELOCITY },
       grounded: false,
+      jumpHeld: true,
     };
   }
 
   // Crouch
   if (input.down && grounded) {
     if (state !== "crouch") {
-      return { ...fighter, state: "crouch", stateFrame: 0 };
+      return { ...fighter, state: "crouch", stateFrame: 0, jumpHeld: newJumpHeld };
     }
-    return { ...fighter, stateFrame: fighter.stateFrame + 1 };
+    return { ...fighter, stateFrame: fighter.stateFrame + 1, jumpHeld: newJumpHeld };
   }
 
   // Walk
   if (input.left || input.right) {
     if (state !== "walk") {
-      return { ...fighter, state: "walk", stateFrame: 0 };
+      return { ...fighter, state: "walk", stateFrame: 0, jumpHeld: newJumpHeld };
     }
-    return { ...fighter, stateFrame: fighter.stateFrame + 1 };
+    return { ...fighter, stateFrame: fighter.stateFrame + 1, jumpHeld: newJumpHeld };
   }
 
   // Idle
   if (state !== "idle") {
-    return { ...fighter, state: "idle", stateFrame: 0 };
+    return { ...fighter, state: "idle", stateFrame: 0, jumpHeld: newJumpHeld };
   }
-  return { ...fighter, stateFrame: fighter.stateFrame + 1 };
+  return { ...fighter, stateFrame: fighter.stateFrame + 1, jumpHeld: newJumpHeld };
 }
 
 // -- Pure movement --
 
 function applyMovement(fighter: FighterState, input: Input): FighterState {
-  if (!fighter.grounded) return fighter;
+  // Air control — nudge horizontal velocity, clamped
+  if (!fighter.grounded) {
+    let vx = fighter.velocity.x;
+    if (input.left) vx -= AIR_CONTROL;
+    if (input.right) vx += AIR_CONTROL;
+    vx = Math.max(-AIR_MAX_SPEED, Math.min(AIR_MAX_SPEED, vx));
+    return { ...fighter, velocity: { x: vx, y: fighter.velocity.y } };
+  }
+
   if (fighter.state === "crouch") return { ...fighter, velocity: { x: 0, y: fighter.velocity.y } };
 
   let vx = 0;

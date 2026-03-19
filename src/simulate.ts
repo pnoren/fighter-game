@@ -3,6 +3,8 @@ import {
   GameState,
   Input,
   StateId,
+  MoveId,
+  MOVES,
   GRAVITY,
   WALK_SPEED,
   JUMP_VELOCITY,
@@ -28,6 +30,18 @@ function wantsJump(f: FighterState, input: Input): boolean {
   return input.up && !f.jumpHeld && f.grounded;
 }
 
+function wantsAttack(input: Input): MoveId | null {
+  if (input.light) return "light";
+  if (input.heavy) return "heavy";
+  return null;
+}
+
+function tryAttack(f: FighterState, input: Input): FighterState | null {
+  const move = wantsAttack(input);
+  if (!move) return null;
+  return enter(f, "attacking", input, { activeMove: move, velocity: { x: 0, y: 0 } });
+}
+
 // -- FSM state handlers: each returns updated FighterState --
 
 type StateHandler = (f: FighterState, input: Input) => FighterState;
@@ -35,6 +49,8 @@ type StateHandler = (f: FighterState, input: Input) => FighterState;
 const FSM: Record<StateId, StateHandler> = {
 
   idle(f, input) {
+    const atk = tryAttack(f, input);
+    if (atk) return atk;
     if (wantsJump(f, input)) {
       return enter(f, "jumping", input, {
         velocity: { x: f.velocity.x, y: JUMP_VELOCITY },
@@ -47,6 +63,8 @@ const FSM: Record<StateId, StateHandler> = {
   },
 
   walking(f, input) {
+    const atk = tryAttack(f, input);
+    if (atk) return atk;
     if (wantsJump(f, input)) {
       return enter(f, "jumping", input, {
         velocity: { x: f.velocity.x, y: JUMP_VELOCITY },
@@ -75,6 +93,8 @@ const FSM: Record<StateId, StateHandler> = {
   },
 
   crouching(f, input) {
+    const atk = tryAttack(f, input);
+    if (atk) return atk;
     if (wantsJump(f, input)) {
       return enter(f, "jumping", input, {
         velocity: { x: 0, y: JUMP_VELOCITY },
@@ -85,9 +105,16 @@ const FSM: Record<StateId, StateHandler> = {
     return tick(f, input, { velocity: { x: 0, y: 0 } });
   },
 
-  // Placeholders — no behavior yet, just hold the state
   attacking(f, input) {
-    return tick(f, input);
+    if (!f.activeMove) return enter(f, "idle", input, { activeMove: null });
+    const move = MOVES[f.activeMove];
+    const total = move.startup + move.active + move.recovery;
+    // Attack finished — return to idle
+    if (f.stateFrame >= total) {
+      return enter(f, "idle", input, { activeMove: null });
+    }
+    // Locked in place during attack
+    return tick(f, input, { velocity: { x: 0, y: 0 } });
   },
 
   hitstun(f, input) {

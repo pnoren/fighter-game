@@ -7,6 +7,7 @@ import {
   FIGHTER_WIDTH,
   FIGHTER_HEIGHT,
   CROUCH_HEIGHT,
+  MOVES,
 } from "./types.js";
 
 const COLORS = ["#3498db", "#e74c3c"];
@@ -38,7 +39,16 @@ function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color
   ctx.fillStyle = "#fff";
   ctx.font = "11px monospace";
   ctx.textAlign = "center";
-  ctx.fillText(fighter.state, fighter.position.x, y - 6);
+  let label: string = fighter.state;
+  if (fighter.state === "attacking" && fighter.activeMove) {
+    const move = MOVES[fighter.activeMove];
+    const frame = fighter.stateFrame;
+    let phase = "startup";
+    if (frame >= move.startup) phase = "active";
+    if (frame >= move.startup + move.active) phase = "recovery";
+    label = `${fighter.activeMove} ${phase}`;
+  }
+  ctx.fillText(label, fighter.position.x, y - 6);
 }
 
 export function render(ctx: CanvasRenderingContext2D, state: GameState): void {

@@ -22,6 +22,7 @@ function createFighter(x: number, facing: 1 | -1, id: string): FighterState {
     stateFrame: 0,
     grounded: true,
     jumpHeld: false,
+    activeMove: null,
     characterId: id,
   };
 }

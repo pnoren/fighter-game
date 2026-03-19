@@ -12,6 +12,21 @@ export const AIR_CONTROL = 0.3;
 export const AIR_MAX_SPEED = 3;
 export const CROUCH_HEIGHT = 80;
 
+// -- Move data --
+
+export type MoveId = "light" | "heavy";
+
+export type MoveData = {
+  startup: number;
+  active: number;
+  recovery: number;
+};
+
+export const MOVES: Record<MoveId, MoveData> = {
+  light: { startup: 4, active: 3, recovery: 8 },
+  heavy: { startup: 8, active: 4, recovery: 16 },
+};
+
 // -- Core types --
 
 export type StateId = "idle" | "walking" | "jumping" | "crouching" | "attacking" | "hitstun";
@@ -24,6 +39,7 @@ export type FighterState = {
   stateFrame: number;
   grounded: boolean;
   jumpHeld: boolean;
+  activeMove: MoveId | null;
   characterId: string;
 };
 
@@ -37,4 +53,6 @@ export type Input = {
   right: boolean;
   up: boolean;
   down: boolean;
+  light: boolean;
+  heavy: boolean;
 };

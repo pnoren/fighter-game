@@ -11,6 +11,7 @@ import {
 } from "./types.js";
 import { deriveHurtbox, deriveHitbox } from "./simulate.js";
 import { deriveAnimation, deriveSquashStretch } from "./animation.js";
+import { drawSprite, SpriteColors } from "./sprites.js";
 
 const COLORS = ["#3498db", "#e74c3c"];
 
@@ -31,48 +32,54 @@ function darkenColor(hex: string, amount: number): string {
   return `rgb(${d(r)},${d(g)},${d(b)})`;
 }
 
-function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color: string, hitstop: number): void {
-  const isCrouching = fighter.state === "crouching";
-  const baseH = isCrouching ? CROUCH_HEIGHT : FIGHTER_HEIGHT;
-  const yOffset = isCrouching ? FIGHTER_HEIGHT - CROUCH_HEIGHT : 0;
+function deriveColors(color: string, fighter: FighterState, anim: ReturnType<typeof deriveAnimation>, hitstop: number): SpriteColors {
+  const isHitFlash = hitstop > 0 && fighter.state === "hitstun" && fighter.stateFrame === 0;
 
-  // Squash/stretch from animation blend
+  let body = color;
+  if (isHitFlash) {
+    body = "#fff";
+  } else if (anim.phase === "active") {
+    body = lightenColor(color, 0.35);
+  } else if (fighter.state === "hitstun") {
+    body = darkenColor(color, 0.3);
+  } else if (anim.phase === "recovery") {
+    body = darkenColor(color, 0.15);
+  }
+
+  return {
+    body,
+    head: isHitFlash ? "#fff" : lightenColor(color, 0.2),
+    limb: isHitFlash ? "#fff" : darkenColor(color, 0.2),
+    fist: isHitFlash ? "#fff" : lightenColor(color, 0.4),
+  };
+}
+
+function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color: string, hitstop: number): void {
   const anim = deriveAnimation(fighter);
   const ss = deriveSquashStretch(anim, fighter.stateFrame);
-  const w = FIGHTER_WIDTH * ss.scaleX;
-  const h = baseH * ss.scaleY;
+  const colors = deriveColors(color, fighter, anim, hitstop);
 
-  // Anchor at feet center: x centered, y pinned to bottom
-  // leanX shifts in facing direction (anticipation/follow-through)
-  const baseBottom = fighter.position.y + yOffset + baseH;
-  const x = fighter.position.x - w / 2 + ss.leanX * fighter.facing;
-  const y = baseBottom - h;
+  // Character origin = feet center on the stage floor (or current y position)
+  const feetX = fighter.position.x + ss.leanX * fighter.facing;
+  const feetY = STAGE_FLOOR;
 
-  // Body — state-based color tinting
-  const isHitFlash = hitstop > 0 && fighter.state === "hitstun" && fighter.stateFrame === 0;
-  let bodyColor = color;
-  if (isHitFlash) {
-    bodyColor = "#fff";
-  } else if (anim.phase === "active") {
-    bodyColor = lightenColor(color, 0.35);
-  } else if (fighter.state === "hitstun") {
-    bodyColor = darkenColor(color, 0.3);
-  } else if (anim.phase === "recovery") {
-    bodyColor = darkenColor(color, 0.15);
-  }
-  ctx.fillStyle = bodyColor;
-  ctx.fillRect(x, y, w, h);
+  ctx.save();
 
-  // Facing indicator (small triangle on the front side)
-  ctx.fillStyle = "#fff";
-  const cx = fighter.facing === 1 ? x + w : x;
-  const dir = fighter.facing;
-  ctx.beginPath();
-  ctx.moveTo(cx, y + 15);
-  ctx.lineTo(cx + dir * 10, y + 22);
-  ctx.lineTo(cx, y + 29);
-  ctx.closePath();
-  ctx.fill();
+  // Position at feet
+  ctx.translate(feetX, feetY);
+
+  // Flip horizontally for facing direction (sprites drawn facing right)
+  ctx.scale(fighter.facing, 1);
+
+  // Apply squash/stretch anchored at feet
+  ctx.scale(ss.scaleX, ss.scaleY);
+
+  // Draw the procedural sprite
+  drawSprite(ctx, anim, colors);
+
+  ctx.restore();
+
+  // State label above character
   ctx.fillStyle = "#fff";
   ctx.font = "11px monospace";
   ctx.textAlign = "center";
@@ -80,20 +87,20 @@ function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color
   if (anim.phase) {
     label = `${anim.name} ${anim.phase}`;
   }
-  ctx.fillText(label, fighter.position.x, y - 6);
+  ctx.fillText(label, fighter.position.x, fighter.position.y - 10);
 
   // Debug: hurtbox (green outline)
   const hurtbox = deriveHurtbox(fighter);
-  ctx.strokeStyle = "rgba(0, 255, 0, 0.5)";
+  ctx.strokeStyle = "rgba(0, 255, 0, 0.3)";
   ctx.lineWidth = 1;
   ctx.strokeRect(hurtbox.x, hurtbox.y, hurtbox.w, hurtbox.h);
 
   // Debug: hitbox (red filled)
   const hitbox = deriveHitbox(fighter);
   if (hitbox) {
-    ctx.fillStyle = "rgba(255, 0, 0, 0.4)";
+    ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
     ctx.fillRect(hitbox.x, hitbox.y, hitbox.w, hitbox.h);
-    ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
+    ctx.strokeStyle = "rgba(255, 0, 0, 0.7)";
     ctx.strokeRect(hitbox.x, hitbox.y, hitbox.w, hitbox.h);
   }
 }

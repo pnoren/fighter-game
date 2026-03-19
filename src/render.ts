@@ -8,10 +8,12 @@ import {
   FIGHTER_HEIGHT,
   CROUCH_HEIGHT,
   MAX_HEALTH,
+  CHARACTERS,
 } from "./types.js";
 import { deriveHurtbox, deriveHitbox } from "./simulate.js";
 import { deriveAnimation, deriveSquashStretch } from "./animation.js";
 import { drawSprite, SpriteColors } from "./sprites.js";
+import { spritesReady, getStrip, drawSpriteFrame, loopFrame, oneshotFrame } from "./spritesheet.js";
 
 const COLORS = ["#3498db", "#e74c3c"];
 
@@ -54,40 +56,102 @@ function deriveColors(color: string, fighter: FighterState, anim: ReturnType<typ
   };
 }
 
-function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color: string, hitstop: number): void {
+// -- Sprite frame calculation --
+
+const LOOPING_ANIMS = new Set(["idle", "walk", "crouch"]);
+const SPRITE_SCALE = 0.9;  // 128px sprites scaled to ~115px (close to FIGHTER_HEIGHT)
+
+function getSpriteFrame(anim: ReturnType<typeof deriveAnimation>, fighter: FighterState): number {
+  const strip = getStrip(anim.name);
+  if (!strip) return 0;
+
+  if (LOOPING_ANIMS.has(anim.name)) {
+    // Looping: cycle through sprite frames
+    const speed = anim.name === "idle" ? 3 : 2;
+    return loopFrame(fighter.stateFrame, strip.totalFrames, speed);
+  }
+
+  // One-shot: map game duration to sprite frame count
+  if (anim.phase) {
+    // Attack: map across full move duration
+    const moveDef = CHARACTERS[fighter.characterId]?.moves[fighter.activeMove ?? ""];
+    if (moveDef) {
+      const total = moveDef.startup + moveDef.active + moveDef.recovery;
+      return oneshotFrame(fighter.stateFrame, total, strip.totalFrames);
+    }
+  }
+
+  // Other one-shots (ko, hitstun, throwing, thrown)
+  return oneshotFrame(fighter.stateFrame, anim.totalFrames, strip.totalFrames);
+}
+
+// -- Fighter drawing --
+
+function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color: string, hitstop: number, playerIdx: number): void {
   const anim = deriveAnimation(fighter);
   const ss = deriveSquashStretch(anim, fighter.stateFrame);
   const colors = deriveColors(color, fighter, anim, hitstop);
 
-  // Character origin = feet center (position.y is top of character box)
   const feetX = fighter.position.x + ss.leanX * fighter.facing;
   const feetY = fighter.position.y + FIGHTER_HEIGHT;
 
-  ctx.save();
+  const strip = spritesReady() ? getStrip(anim.name) : null;
 
-  // Position at feet
-  ctx.translate(feetX, feetY);
+  if (strip) {
+    // -- Sprite sheet rendering --
+    const spriteFrame = getSpriteFrame(anim, fighter);
+    const baseSize = 128 * SPRITE_SCALE;
 
-  // Flip horizontally for facing direction (sprites drawn facing right)
-  ctx.scale(fighter.facing, 1);
+    ctx.save();
+    ctx.translate(feetX, feetY);
 
-  // Apply squash/stretch anchored at feet
-  ctx.scale(ss.scaleX, ss.scaleY);
+    // Flip: sprites face right by default
+    if (fighter.facing === -1) {
+      ctx.scale(-1, 1);
+    }
 
-  // Draw the procedural sprite
-  drawSprite(ctx, anim, colors);
+    // Apply squash/stretch
+    ctx.scale(ss.scaleX, ss.scaleY);
 
-  ctx.restore();
+    const isHitFlash = hitstop > 0 && fighter.state === "hitstun" && fighter.stateFrame === 0;
 
-  // State label above character
-  ctx.fillStyle = "#fff";
-  ctx.font = "11px monospace";
-  ctx.textAlign = "center";
-  let label = `${anim.name} [${anim.frame}/${anim.totalFrames}]`;
-  if (anim.phase) {
-    label = `${anim.name} ${anim.phase}`;
+    // Draw sprite anchored at feet-center
+    drawSpriteFrame(ctx, strip, spriteFrame, -baseSize / 2, -baseSize, SPRITE_SCALE);
+
+    // P2 color tint (red overlay)
+    if (playerIdx === 1) {
+      ctx.globalCompositeOperation = "source-atop";
+      ctx.fillStyle = "rgba(200, 50, 50, 0.25)";
+      ctx.fillRect(-baseSize / 2, -baseSize, baseSize, baseSize);
+      ctx.globalCompositeOperation = "source-over";
+    }
+
+    // Hit flash overlay
+    if (isHitFlash) {
+      ctx.globalCompositeOperation = "source-atop";
+      ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+      ctx.fillRect(-baseSize / 2, -baseSize, baseSize, baseSize);
+      ctx.globalCompositeOperation = "source-over";
+    }
+
+    // Active attack: bright overlay
+    if (anim.phase === "active" && !isHitFlash) {
+      ctx.globalCompositeOperation = "source-atop";
+      ctx.fillStyle = "rgba(255, 255, 200, 0.2)";
+      ctx.fillRect(-baseSize / 2, -baseSize, baseSize, baseSize);
+      ctx.globalCompositeOperation = "source-over";
+    }
+
+    ctx.restore();
+  } else {
+    // -- Procedural fallback --
+    ctx.save();
+    ctx.translate(feetX, feetY);
+    ctx.scale(fighter.facing, 1);
+    ctx.scale(ss.scaleX, ss.scaleY);
+    drawSprite(ctx, anim, colors);
+    ctx.restore();
   }
-  ctx.fillText(label, fighter.position.x, fighter.position.y - 10);
 
   // Debug: hurtbox (green outline)
   const hurtbox = deriveHurtbox(fighter);
@@ -159,8 +223,8 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState): void {
   ctx.fillRect(0, STAGE_FLOOR, STAGE_WIDTH, STAGE_HEIGHT - STAGE_FLOOR);
 
   // Fighters
-  drawFighter(ctx, state.fighters[0], COLORS[0], state.hitstop);
-  drawFighter(ctx, state.fighters[1], COLORS[1], state.hitstop);
+  drawFighter(ctx, state.fighters[0], COLORS[0], state.hitstop, 0);
+  drawFighter(ctx, state.fighters[1], COLORS[1], state.hitstop, 1);
 
   // Projectiles
   for (const p of state.projectiles) {

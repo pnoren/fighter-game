@@ -11,6 +11,7 @@ import {
 import { initInput, readInput } from "./input.js";
 import { simulate } from "./simulate.js";
 import { render } from "./render.js";
+import { loadAllSprites } from "./spritesheet.js";
 
 // -- Initial state --
 
@@ -85,4 +86,6 @@ function loop(now: number): void {
   requestAnimationFrame(loop);
 }
 
+// Load sprites then start — game loop runs immediately with procedural fallback
+loadAllSprites().then(() => console.log("Sprites ready"));
 requestAnimationFrame(loop);

@@ -146,11 +146,31 @@ const FSM: Record<StateId, StateHandler> = {
     const move = moveData(f);
     if (!move) return enter(f, "idle", input, { activeMove: null, hitConfirmed: false });
     const total = move.startup + move.active + move.recovery;
+
+    // Attack finished
     if (f.stateFrame >= total) {
       const buffered = consumeBuffer(f, input);
       if (buffered) return { ...buffered, hitConfirmed: false };
       return enter(f, "idle", input, { activeMove: null, hitConfirmed: false });
     }
+
+    // Recovery cancel on hit — can chain into attack or jump
+    const inRecovery = f.stateFrame >= move.startup + move.active;
+    if (inRecovery && f.hitConfirmed) {
+      const atk = tryAttack(f, input);
+      if (atk) return { ...atk, hitConfirmed: false };
+      const buffered = consumeBuffer(f, input);
+      if (buffered) return { ...buffered, hitConfirmed: false };
+      if (wantsJump(f, input)) {
+        return enter(f, "jumping", input, {
+          velocity: { x: 0, y: charDef(f).jumpVelocity },
+          grounded: false,
+          activeMove: null,
+          hitConfirmed: false,
+        });
+      }
+    }
+
     return tick(f, input, { velocity: { x: 0, y: 0 } });
   },
 
@@ -160,6 +180,21 @@ const FSM: Record<StateId, StateHandler> = {
       if (buffered) return { ...buffered, comboCount: 0 };
       return enter(f, "idle", input, { comboCount: 0 });
     }
+
+    // Early out: last 2 frames accept movement to feel responsive
+    const framesLeft = f.hitstunDuration - f.stateFrame;
+    if (framesLeft <= 2) {
+      if (wantsJump(f, input)) {
+        return enter(f, "jumping", input, {
+          velocity: { x: 0, y: charDef(f).jumpVelocity },
+          grounded: false,
+          comboCount: 0,
+        });
+      }
+      if (input.down) return enter(f, "crouching", input, { velocity: { x: 0, y: 0 }, comboCount: 0 });
+      if (input.left || input.right) return enter(f, "walking", input, { comboCount: 0 });
+    }
+
     return tick(f, input, { velocity: { x: 0, y: 0 } });
   },
 };

@@ -121,6 +121,17 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState): void {
   // Health bars
   drawHealthBars(ctx, state.fighters);
 
+  // Combo counters
+  for (let i = 0; i < 2; i++) {
+    const f = state.fighters[i];
+    if (f.comboCount >= 2) {
+      ctx.fillStyle = "#f1c40f";
+      ctx.font = "bold 24px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(`${f.comboCount} HIT`, f.position.x, f.position.y - 20);
+    }
+  }
+
   // Frame counter
   ctx.fillStyle = "#666";
   ctx.font = "12px monospace";

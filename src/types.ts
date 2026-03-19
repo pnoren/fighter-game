@@ -35,6 +35,9 @@ export const MOVES: Record<MoveId, MoveData> = {
 };
 
 export const MAX_HEALTH = 100;
+export const MAX_COMBO_SCALING = 5;
+export const DAMAGE_SCALE_PER_HIT = 0.15;
+export const HITSTUN_SCALE_PER_HIT = 0.12;
 export const BUFFER_WINDOW = 8;
 
 export type BufferedInput = { move: MoveId; frame: number };
@@ -55,6 +58,7 @@ export type FighterState = {
   hitConfirmed: boolean;
   health: number;
   hitstunDuration: number;
+  comboCount: number;
   inputBuffer: BufferedInput[];
   characterId: string;
 };

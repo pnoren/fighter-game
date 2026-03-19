@@ -9,6 +9,9 @@ import {
   BufferedInput,
   MOVES,
   BUFFER_WINDOW,
+  MAX_COMBO_SCALING,
+  DAMAGE_SCALE_PER_HIT,
+  HITSTUN_SCALE_PER_HIT,
   GRAVITY,
   WALK_SPEED,
   JUMP_VELOCITY,
@@ -146,10 +149,10 @@ const FSM: Record<StateId, StateHandler> = {
 
   hitstun(f, input) {
     if (f.stateFrame >= f.hitstunDuration) {
-      // Hitstun over — check buffer for immediate attack
+      // Hitstun over — combo resets, check buffer for immediate counterattack
       const buffered = consumeBuffer(f, input);
-      if (buffered) return buffered;
-      return enter(f, "idle", input);
+      if (buffered) return { ...buffered, comboCount: 0 };
+      return enter(f, "idle", input, { comboCount: 0 });
     }
     return tick(f, input, { velocity: { x: 0, y: 0 } });
   },
@@ -255,44 +258,49 @@ function rectsOverlap(a: Rect, b: Rect): boolean {
 
 // -- Hit resolution --
 
+function applyHit(
+  attacker: FighterState,
+  defender: FighterState,
+  move: MoveData,
+  attackerLabel: string,
+): [FighterState, FighterState] {
+  const combo = defender.comboCount + 1;
+  const scale = Math.max(0, 1 - DAMAGE_SCALE_PER_HIT * Math.min(defender.comboCount, MAX_COMBO_SCALING));
+  const stunScale = Math.max(0.3, 1 - HITSTUN_SCALE_PER_HIT * Math.min(defender.comboCount, MAX_COMBO_SCALING));
+  const damage = Math.round(move.damage * scale);
+  const hitstun = Math.round(move.hitstun * stunScale);
+  const newHealth = Math.max(0, defender.health - damage);
+
+  console.log(
+    `${attackerLabel} ${attacker.activeMove} hit: ${defender.health} → ${newHealth} (-${damage}) combo:${combo} scale:${(scale * 100).toFixed(0)}%`,
+  );
+
+  return [
+    { ...attacker, hitConfirmed: true },
+    {
+      ...defender,
+      health: newHealth,
+      state: "hitstun" as const,
+      stateFrame: 0,
+      hitstunDuration: hitstun,
+      comboCount: combo,
+      velocity: { x: 0, y: 0 },
+      activeMove: null,
+    },
+  ];
+}
+
 function resolveHits(f0: FighterState, f1: FighterState): [FighterState, FighterState] {
   const h0 = deriveHitbox(f0);
   const h1 = deriveHitbox(f1);
   const hurt0 = deriveHurtbox(f0);
   const hurt1 = deriveHurtbox(f1);
 
-  // Check f0 hitting f1
   if (h0 && rectsOverlap(h0, hurt1)) {
-    const move = MOVES[f0.activeMove!];
-    const newHealth = Math.max(0, f1.health - move.damage);
-    console.log(`P1 ${f0.activeMove} hit P2: ${f1.health} → ${newHealth} (-${move.damage})`);
-    f0 = { ...f0, hitConfirmed: true };
-    f1 = {
-      ...f1,
-      health: newHealth,
-      state: "hitstun",
-      stateFrame: 0,
-      hitstunDuration: move.hitstun,
-      velocity: { x: 0, y: 0 },
-      activeMove: null,
-    };
+    [f0, f1] = applyHit(f0, f1, MOVES[f0.activeMove!], "P1");
   }
-
-  // Check f1 hitting f0
   if (h1 && rectsOverlap(h1, hurt0)) {
-    const move = MOVES[f1.activeMove!];
-    const newHealth = Math.max(0, f0.health - move.damage);
-    console.log(`P2 ${f1.activeMove} hit P1: ${f0.health} → ${newHealth} (-${move.damage})`);
-    f1 = { ...f1, hitConfirmed: true };
-    f0 = {
-      ...f0,
-      health: newHealth,
-      state: "hitstun",
-      stateFrame: 0,
-      hitstunDuration: move.hitstun,
-      velocity: { x: 0, y: 0 },
-      activeMove: null,
-    };
+    [f1, f0] = applyHit(f1, f0, MOVES[f1.activeMove!], "P2");
   }
 
   return [f0, f1];

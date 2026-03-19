@@ -4,25 +4,32 @@ import {
   Input,
   Rect,
   StateId,
-  MoveId,
   MoveData,
+  CharacterDef,
   BufferedInput,
-  MOVES,
+  CHARACTERS,
   BUFFER_WINDOW,
   MAX_COMBO_SCALING,
   DAMAGE_SCALE_PER_HIT,
   HITSTUN_SCALE_PER_HIT,
   GRAVITY,
-  WALK_SPEED,
-  JUMP_VELOCITY,
-  AIR_CONTROL,
-  AIR_MAX_SPEED,
   STAGE_FLOOR,
   STAGE_WIDTH,
   FIGHTER_WIDTH,
   FIGHTER_HEIGHT,
   CROUCH_HEIGHT,
 } from "./types.js";
+
+// -- Character data lookup --
+
+function charDef(f: FighterState): CharacterDef {
+  return CHARACTERS[f.characterId];
+}
+
+function moveData(f: FighterState): MoveData | null {
+  if (!f.activeMove) return null;
+  return charDef(f).moves[f.activeMove] ?? null;
+}
 
 // -- FSM helpers --
 
@@ -38,7 +45,7 @@ function wantsJump(f: FighterState, input: Input): boolean {
   return input.up && !f.jumpHeld && f.grounded;
 }
 
-function wantsAttack(input: Input): MoveId | null {
+function wantsAttack(input: Input): string | null {
   if (input.light) return "light";
   if (input.heavy) return "heavy";
   return null;
@@ -46,7 +53,7 @@ function wantsAttack(input: Input): MoveId | null {
 
 function tryAttack(f: FighterState, input: Input): FighterState | null {
   const move = wantsAttack(input);
-  if (!move) return null;
+  if (!move || !charDef(f).moves[move]) return null;
   return enter(f, "attacking", input, { activeMove: move, velocity: { x: 0, y: 0 }, inputBuffer: [] });
 }
 
@@ -64,6 +71,7 @@ function bufferInput(f: FighterState, input: Input, frame: number): FighterState
 function consumeBuffer(f: FighterState, input: Input): FighterState | null {
   if (f.inputBuffer.length === 0) return null;
   const last = f.inputBuffer[f.inputBuffer.length - 1];
+  if (!charDef(f).moves[last.move]) return null;
   return enter(f, "attacking", input, { activeMove: last.move, velocity: { x: 0, y: 0 }, inputBuffer: [] });
 }
 
@@ -78,7 +86,7 @@ const FSM: Record<StateId, StateHandler> = {
     if (atk) return atk;
     if (wantsJump(f, input)) {
       return enter(f, "jumping", input, {
-        velocity: { x: f.velocity.x, y: JUMP_VELOCITY },
+        velocity: { x: f.velocity.x, y: charDef(f).jumpVelocity },
         grounded: false,
       });
     }
@@ -92,32 +100,32 @@ const FSM: Record<StateId, StateHandler> = {
     if (atk) return atk;
     if (wantsJump(f, input)) {
       return enter(f, "jumping", input, {
-        velocity: { x: f.velocity.x, y: JUMP_VELOCITY },
+        velocity: { x: f.velocity.x, y: charDef(f).jumpVelocity },
         grounded: false,
       });
     }
     if (input.down) return enter(f, "crouching", input, { velocity: { x: 0, y: 0 } });
     if (!input.left && !input.right) return enter(f, "idle", input, { velocity: { x: 0, y: 0 } });
 
+    const speed = charDef(f).walkSpeed;
     let vx = 0;
-    if (input.left) vx -= WALK_SPEED;
-    if (input.right) vx += WALK_SPEED;
+    if (input.left) vx -= speed;
+    if (input.right) vx += speed;
     return tick(f, input, { velocity: { x: vx, y: 0 } });
   },
 
   jumping(f, input) {
-    // Landed — check buffer for attack, otherwise idle
     if (f.grounded) {
       const buffered = consumeBuffer(f, input);
       if (buffered) return buffered;
       return enter(f, "idle", input, { velocity: { x: 0, y: 0 } });
     }
 
-    // Air control
+    const cd = charDef(f);
     let vx = f.velocity.x;
-    if (input.left) vx -= AIR_CONTROL;
-    if (input.right) vx += AIR_CONTROL;
-    vx = Math.max(-AIR_MAX_SPEED, Math.min(AIR_MAX_SPEED, vx));
+    if (input.left) vx -= cd.airControl;
+    if (input.right) vx += cd.airControl;
+    vx = Math.max(-cd.airMaxSpeed, Math.min(cd.airMaxSpeed, vx));
     return tick(f, input, { velocity: { x: vx, y: f.velocity.y } });
   },
 
@@ -126,7 +134,7 @@ const FSM: Record<StateId, StateHandler> = {
     if (atk) return atk;
     if (wantsJump(f, input)) {
       return enter(f, "jumping", input, {
-        velocity: { x: 0, y: JUMP_VELOCITY },
+        velocity: { x: 0, y: charDef(f).jumpVelocity },
         grounded: false,
       });
     }
@@ -135,11 +143,10 @@ const FSM: Record<StateId, StateHandler> = {
   },
 
   attacking(f, input) {
-    if (!f.activeMove) return enter(f, "idle", input, { activeMove: null, hitConfirmed: false });
-    const move = MOVES[f.activeMove];
+    const move = moveData(f);
+    if (!move) return enter(f, "idle", input, { activeMove: null, hitConfirmed: false });
     const total = move.startup + move.active + move.recovery;
     if (f.stateFrame >= total) {
-      // Attack finished — check buffer for chained attack
       const buffered = consumeBuffer(f, input);
       if (buffered) return { ...buffered, hitConfirmed: false };
       return enter(f, "idle", input, { activeMove: null, hitConfirmed: false });
@@ -149,7 +156,6 @@ const FSM: Record<StateId, StateHandler> = {
 
   hitstun(f, input) {
     if (f.stateFrame >= f.hitstunDuration) {
-      // Hitstun over — combo resets, check buffer for immediate counterattack
       const buffered = consumeBuffer(f, input);
       if (buffered) return { ...buffered, comboCount: 0 };
       return enter(f, "idle", input, { comboCount: 0 });
@@ -172,7 +178,6 @@ function applyGravity(fighter: FighterState): FighterState {
   const vy = fighter.velocity.y + GRAVITY;
   const y = fighter.position.y + vy;
 
-  // Land
   if (y >= STAGE_FLOOR - FIGHTER_HEIGHT) {
     return {
       ...fighter,
@@ -238,8 +243,8 @@ export function deriveHurtbox(f: FighterState): Rect {
 
 export function deriveHitbox(f: FighterState): Rect | null {
   if (f.state !== "attacking" || !f.activeMove || f.hitConfirmed) return null;
-  const move = MOVES[f.activeMove];
-  // Only active during active frames
+  const move = moveData(f);
+  if (!move) return null;
   if (f.stateFrame < move.startup || f.stateFrame >= move.startup + move.active) return null;
   const hb = move.hitbox;
   return {
@@ -297,10 +302,12 @@ function resolveHits(f0: FighterState, f1: FighterState): [FighterState, Fighter
   const hurt1 = deriveHurtbox(f1);
 
   if (h0 && rectsOverlap(h0, hurt1)) {
-    [f0, f1] = applyHit(f0, f1, MOVES[f0.activeMove!], "P1");
+    const move = moveData(f0);
+    if (move) [f0, f1] = applyHit(f0, f1, move, "P1");
   }
   if (h1 && rectsOverlap(h1, hurt0)) {
-    [f1, f0] = applyHit(f1, f0, MOVES[f1.activeMove!], "P2");
+    const move = moveData(f1);
+    if (move) [f1, f0] = applyHit(f1, f0, move, "P2");
   }
 
   return [f0, f1];

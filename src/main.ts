@@ -36,8 +36,8 @@ function createFighter(x: number, facing: 1 | -1, id: string): FighterState {
 const INITIAL_STATE: GameState = {
   frame: 0,
   fighters: [
-    createFighter(STAGE_WIDTH * 0.3, 1, "p1"),
-    createFighter(STAGE_WIDTH * 0.7, -1, "p2"),
+    createFighter(STAGE_WIDTH * 0.3, 1, "fighter"),
+    createFighter(STAGE_WIDTH * 0.7, -1, "fighter"),
   ],
 };
 

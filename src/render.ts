@@ -8,7 +8,7 @@ import {
   FIGHTER_HEIGHT,
   CROUCH_HEIGHT,
   MAX_HEALTH,
-  MOVES,
+  CHARACTERS,
 } from "./types.js";
 import { deriveHurtbox, deriveHitbox } from "./simulate.js";
 
@@ -43,7 +43,8 @@ function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color
   ctx.textAlign = "center";
   let label: string = fighter.state;
   if (fighter.state === "attacking" && fighter.activeMove) {
-    const move = MOVES[fighter.activeMove];
+    const move = CHARACTERS[fighter.characterId]?.moves[fighter.activeMove];
+    if (!move) return;
     const frame = fighter.stateFrame;
     let phase = "startup";
     if (frame >= move.startup) phase = "active";

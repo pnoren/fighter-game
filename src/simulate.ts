@@ -56,7 +56,55 @@ function wantsAttack(input: Input): string | null {
 function tryAttack(f: FighterState, input: Input): FighterState | null {
   const move = wantsAttack(input);
   if (!move || !charDef(f).moves[move]) return null;
-  return enter(f, "attacking", input, { activeMove: move, velocity: { x: 0, y: 0 }, inputBuffer: [] });
+  return enter(f, "attacking", input, { activeMove: move, velocity: { x: 0, y: 0 }, inputBuffer: [], chainCount: 0 });
+}
+
+// -- Chain cancel logic --
+
+const MAX_LIGHT_CHAIN = 2;
+
+function canChainInto(f: FighterState, nextMoveId: string): boolean {
+  const cd = charDef(f);
+  const current = f.activeMove ? cd.moves[f.activeMove] : null;
+  const next = cd.moves[nextMoveId];
+  if (!current || !next) return false;
+
+  // Heavy moves are enders — cannot cancel
+  if (current.weight >= 2) return false;
+
+  // Light into heavy — always allowed
+  if (next.weight > current.weight) return true;
+
+  // Light into light — limited chain count
+  if (next.weight <= current.weight && f.chainCount < MAX_LIGHT_CHAIN) return true;
+
+  return false;
+}
+
+function tryChain(f: FighterState, input: Input): FighterState | null {
+  // Try direct input first
+  const moveId = wantsAttack(input);
+  if (moveId && canChainInto(f, moveId)) {
+    const newChain = charDef(f).moves[moveId].weight <= 1 ? f.chainCount + 1 : 0;
+    return enter(f, "attacking", input, {
+      activeMove: moveId, velocity: { x: 0, y: 0 }, inputBuffer: [],
+      hitConfirmed: false, chainCount: newChain,
+    });
+  }
+
+  // Try buffer
+  if (f.inputBuffer.length > 0) {
+    const last = f.inputBuffer[f.inputBuffer.length - 1];
+    if (canChainInto(f, last.move)) {
+      const newChain = charDef(f).moves[last.move]?.weight <= 1 ? f.chainCount + 1 : 0;
+      return enter(f, "attacking", input, {
+        activeMove: last.move, velocity: { x: 0, y: 0 }, inputBuffer: [],
+        hitConfirmed: false, chainCount: newChain,
+      });
+    }
+  }
+
+  return null;
 }
 
 // -- Input buffer --
@@ -146,29 +194,26 @@ const FSM: Record<StateId, StateHandler> = {
 
   attacking(f, input) {
     const move = moveData(f);
-    if (!move) return enter(f, "idle", input, { activeMove: null, hitConfirmed: false });
+    if (!move) return enter(f, "idle", input, { activeMove: null, hitConfirmed: false, chainCount: 0 });
     const total = move.startup + move.active + move.recovery;
 
-    // Attack finished
+    // Attack finished — return to idle (chain window is recovery only)
     if (f.stateFrame >= total) {
-      const buffered = consumeBuffer(f, input);
-      if (buffered) return { ...buffered, hitConfirmed: false };
-      return enter(f, "idle", input, { activeMove: null, hitConfirmed: false });
+      return enter(f, "idle", input, { activeMove: null, hitConfirmed: false, chainCount: 0 });
     }
 
-    // Recovery cancel on hit — can chain into attack or jump
+    // Recovery cancel on hit — chain into valid next attack or jump
     const inRecovery = f.stateFrame >= move.startup + move.active;
     if (inRecovery && f.hitConfirmed) {
-      const atk = tryAttack(f, input);
-      if (atk) return { ...atk, hitConfirmed: false };
-      const buffered = consumeBuffer(f, input);
-      if (buffered) return { ...buffered, hitConfirmed: false };
+      const chain = tryChain(f, input);
+      if (chain) return chain;
       if (wantsJump(f, input)) {
         return enter(f, "jumping", input, {
           velocity: { x: 0, y: charDef(f).jumpVelocity },
           grounded: false,
           activeMove: null,
           hitConfirmed: false,
+          chainCount: 0,
         });
       }
     }

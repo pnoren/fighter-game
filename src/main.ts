@@ -28,6 +28,7 @@ function createFighter(x: number, facing: 1 | -1, id: string): FighterState {
     health: MAX_HEALTH,
     hitstunDuration: 0,
     comboCount: 0,
+    chainCount: 0,
     inputBuffer: [],
     characterId: id,
   };

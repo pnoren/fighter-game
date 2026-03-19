@@ -62,11 +62,56 @@ I have created the repo now, and I am about to go for the initial prompts. But y
 
 You’re absolutely right — if your initial prompt is vague, you’ll get generic architecture , and then you’re back in the same trap as the hackathon. The trick is: ❗ Give clear constraints , but NOT a fixed design You want to shape the problem space , not solve it for the model. 🧠 What your initial prompt MUST include Think in 4 layers: 1. 🎮 Game requirements (so it’s not generic) 2. ⚙️ Technical constraints (so designs differ meaningfully) 3. 🧪 Variation requirement (forces multiple architectures) 4. 🚫 Anti-pattern rules (prevents early lock-in) ✅ A strong “architecture prompt” (use this) Here’s a copy-paste ready version you can use in Claude : 🧱 Prompt: Generate architectures 
 ```
-You are designing the architecture for a 2D fighting game (similar to Street Fighter). Functional requirements: - 2 characters on screen - Movement: left/right, jump, crouch - Attacks: light, heavy, special - Health system - Collision detection (hitboxes/hurtboxes) - Animation system - Input buffering / combo potential Non-functional requirements: - Must support adding new characters easily - Must support adding new moves without rewriting core logic - Should handle animation + gameplay synchronization cleanly - Should be testable (logic separated from rendering if possible) Technical constraints: - Language: [PUT YOUR LANGUAGE HERE] - Keep implementation simple enough for a prototype (no overengineering) - No external game engines (or specify if you want one) Task: Design 3 fundamentally different architectures for this system. STRICT REQUIREMENTS: - Each architecture must follow a DIFFERENT paradigm (e.g. OOP, ECS, functional, data-driven, state machine heavy, etc.) - Do NOT just vary naming or structure — they must be meaningfully different - For each architecture: - Explain core concepts - Show high-level structure (modules/classes/components) - Describe how input → action → animation → collision flows - List pros/cons - Identify likely scaling problems Important: Do NOT generate full code. Focus only on architecture and design decisions.
+You are designing the architecture for a 2D fighting game (similar to Street Fighter).
+
+Functional requirements:
+- 2 characters on screen
+- Movement: left/right, jump, crouch
+- Attacks: light, heavy, special
+- Health system
+- Collision detection (hitboxes/hurtboxes)
+- Animation system
+- Input buffering / combo potential
+
+Non-functional requirements:
+- Must support adding new characters easily
+- Must support adding new moves without rewriting core logic
+- Should handle animation + gameplay synchronization cleanly
+- Should be testable (logic separated from rendering if possible)
+
+Technical constraints:
+- Language: [PUT YOUR LANGUAGE HERE]
+- Keep implementation simple enough for a prototype (no overengineering)
+- No external game engines (or specify if you want one)
+
+Task: Design 3 fundamentally different architectures for this system.
+
+STRICT REQUIREMENTS:
+- Each architecture must follow a DIFFERENT paradigm (e.g. OOP, ECS, functional, data-driven, state machine heavy, etc.)
+- Do NOT just vary naming or structure — they must be meaningfully different
+- For each architecture:
+- Explain core concepts
+- Show high-level structure (modules/classes/components)
+- Describe how input → action → animation → collision flows
+- List pros/cons
+- Identify likely scaling problems
+
+Important: Do NOT generate full code. Focus only on architecture and design decisions.
 ```
  🔥 Why this works This prompt forces: ✅ Comparable outputs ✅ Real tradeoffs ✅ Structural differences AND avoids: ❌ “Here’s a simple game loop…” ❌ Early code commitment 🧪 Next step (DO NOT skip this) After you get the 3 architectures: 👉 Run a critique prompt 
 ```
-Critique these three architectures as if you were a senior game engine developer. Focus on: - Extensibility (adding characters/moves) - Handling complex animations and combos - Risk of becoming messy over time - Ease of debugging Then: - Rank them - Suggest improvements - Suggest a hybrid approach if beneficial
+Critique these three architectures as if you were a senior game engine developer.
+
+Focus on:
+- Extensibility (adding characters/moves)
+- Handling complex animations and combos
+- Risk of becoming messy over time
+- Ease of debugging
+
+Then:
+- Rank them
+- Suggest improvements
+- Suggest a hybrid approach if beneficial
 ```
  🧨 This is where most people fail They: Pick the first “good enough” design Start coding immediately 👉 Instead: 🪓 Force a decision: Ask: 
 ```
@@ -74,7 +119,12 @@ If you had to bet on ONE architecture for a 2-week project, which would you choo
 ```
  ⚙️ Only THEN move to implementation When building, switch to: 👉 Medium thinking 👉 And use prompts like: 
 ```
-Implement ONLY the core game loop and player movement. Constraints: - Follow the chosen architecture strictly - Keep code minimal and clean - Do not add features not requested
+Implement ONLY the core game loop and player movement.
+
+Constraints:
+- Follow the chosen architecture strictly
+- Keep code minimal and clean
+- Do not add features not requested
 ```
  🧠 Advanced (optional but powerful) Before coding, ask: What are the biggest risks in this architecture? How can we design the FIRST version to avoid them? 🔑 The real mindset shift You’re not asking: “Build me a game” You’re asking: “Explore the design space, then commit intentionally” 🚀 If you want next step I can: Turn this into a full step-by-step workflow in Warp Or help you pick language + architecture combo (this matters more than people think) Just tell me what language you’re planning to use.
 
@@ -102,11 +152,17 @@ One thing we haven't instructed Claude yet, is when to commit work to GitHub. Is
 
 Yes — this is actually a big deal , and it’s one of the reasons your hackathon likely felt messy. Without clear commit rules, you get: drifting architecture unclear progress hard-to-revert decisions 👉 Git becomes your “memory + control system” , not just backup. 🧠 Keep it simple: 4 commit rules Don’t overdesign this. Just enforce these: 1. 📦 Commit per meaningful unit Not every file change — but every coherent step Examples: “add basic game loop” “implement player movement” “add collision detection skeleton” 2. 🧱 Commit before structural changes Any time you’re about to: refactor architecture rename core concepts move files around 👉 Commit first 3. 🧪 Separate experiments into branches This is the one you missed earlier. arch-ecs arch-oop experiment-input-system 👉 Never mix experiments into main 4. 🪓 Commit BEFORE asking for big AI changes This is critical. Before prompting: “rewrite this into a state machine system” 👉 Commit current state So you can: compare revert cherry-pick ideas 🤖 What to tell Claude (simple instruction) Add this once at the start: Bash 
 ```
-You are working in a git repository. Rules: - Suggest a commit after each meaningful step - Provide a short commit message - Warn before large refactors so I can commit first - Prefer small, logical commits over large ones
+You are working in a git repository. Rules:
+- Suggest a commit after each meaningful step
+- Provide a short commit message
+- Warn before large refactors so I can commit first
+- Prefer small, logical commits over large ones
 ```
  🔥 Even better (tiny upgrade) Ask Claude to include: Bash 
 ```
-After each completed step: - Summarize what changed - Suggest a git commit message
+After each completed step:
+- Summarize what changed
+- Suggest a git commit message
 ```
  🧠 Example flow (what it should feel like) You: “Add jumping” Claude: implements it then says: Summary: - Added jump state - Updated input handling - Adjusted gravity logic Suggested commit: feat: add player jump mechanics with gravity handling 🧨 What NOT to do Avoid: “I’ll commit later” giant commits like: “lots of changes” That kills your ability to: experiment compare architectures undo bad ideas ⚡ One optional pro move Tag milestones: Bash git tag v0.1-core-loop git tag v0.2-movement 👉 Makes it easy to jump between stable states 🧠 Bottom line You don’t need complex Git automation. Just enforce: ❗ “Commit before change, not after chaos” If you want, I can give you: a perfect branch strategy for your game or a Claude prompt that drives the entire Git workflow automatically Both make a noticeable difference.
 
@@ -122,35 +178,89 @@ Continue with what I should prompt Claude in order to get the perfect street fig
 
 Nice — you’re on the right track now. Keep it structured and don’t let Claude drift. Here’s a tight sequence of prompts to follow next. Think of it as building the minimum viable fighting game core in the right order. 🎮 Next prompts (in order) 1. 🧍 Add state machine (THIS prevents future mess) 
 ```
-Refactor player logic into a finite state machine. Requirements: - States: idle, walking, jumping, crouching, attacking, hitstun - Clear transitions between states - No duplicated logic between states - Keep it simple and readable Do NOT add new features, only restructure existing logic.
+Refactor player logic into a finite state machine.
+
+Requirements:
+- States: idle, walking, jumping, crouching, attacking, hitstun
+- Clear transitions between states
+- No duplicated logic between states
+- Keep it simple and readable Do NOT add new features, only restructure existing logic.
 ```
  👉 Commit after 2. 🎯 Basic attacks (no combos yet) 
 ```
-Add basic attacks (light and heavy). Requirements: - Each attack has: - startup, active, recovery frames - Attacks should lock player movement during execution - Use the state machine (do not bypass it) - No animations yet, just logic Keep implementation minimal.
+Add basic attacks (light and heavy).
+
+Requirements:
+- Each attack has:
+- startup, active, recovery frames
+- Attacks should lock player movement during execution
+- Use the state machine (do not bypass it)
+- No animations yet, just logic Keep implementation minimal.
 ```
  👉 Commit 3. 💥 Hit detection (core fighting mechanic) 
 ```
-Implement hit detection using hitboxes and hurtboxes. Requirements: - Each player has a hurtbox - Attacks spawn temporary hitboxes - Detect collisions between hitbox and opponent hurtbox - Apply damage on hit Keep it simple: - Rectangular boxes - No physics engine
+Implement hit detection using hitboxes and hurtboxes.
+
+Requirements:
+- Each player has a hurtbox
+- Attacks spawn temporary hitboxes
+- Detect collisions between hitbox and opponent hurtbox
+- Apply damage on hit
+
+Keep it simple:
+- Rectangular boxes
+- No physics engine
 ```
  👉 Commit 4. ❤️ Health system 
 ```
-Add a health system. Requirements: - Each player has health - Damage reduces health - Print/log health changes for now - No UI needed yet
+Add a health system.
+
+Requirements:
+- Each player has health
+- Damage reduces health
+- Print/log health changes for now
+- No UI needed yet
 ```
  👉 Commit 5. 🥊 Hit reaction (VERY important feel) 
 ```
-Add hit reaction system. Requirements: - On hit: - Enter hitstun state - Disable input temporarily - Hitstun duration depends on attack - Prevent attacking during hitstun Keep it simple and consistent.
+Add hit reaction system.
+
+Requirements:
+- On hit:
+- Enter hitstun state
+- Disable input temporarily
+- Hitstun duration depends on attack
+- Prevent attacking during hitstun Keep it simple and consistent.
 ```
  👉 Commit 6. 🎮 Input buffering (this is where it gets “Street Fighter”) 
 ```
-Add basic input buffering. Requirements: - Store recent inputs for a short time window - Allow buffered attack input during recovery or jump landing - Keep implementation simple (queue or small buffer) Do not overengineer combos yet.
+Add basic input buffering.
+
+Requirements:
+- Store recent inputs for a short time window
+- Allow buffered attack input during recovery or jump landing
+- Keep implementation simple (queue or small buffer) Do not overengineer combos yet.
 ```
  👉 Commit 7. 🔗 Simple combo logic 
 ```
-Allow simple combos. Requirements: - If player is hit during hitstun → allow next hit - Prevent infinite combos (basic limit or decay) - No complex combo system, just chaining hits Keep logic minimal.
+Allow simple combos.
+
+Requirements:
+- If player is hit during hitstun → allow next hit
+- Prevent infinite combos (basic limit or decay)
+- No complex combo system, just chaining hits Keep logic minimal.
 ```
  👉 Commit 🧠 VERY IMPORTANT RULE (don’t skip this) Before continuing further, run: 
 ```
-Review the current architecture. Questions: - Is the state machine still clean? - Are responsibilities clearly separated? - What will become messy if we add: - animations - more characters - special moves Suggest a small refactor if needed, but avoid overengineering.
+Review the current architecture.
+
+Questions:
+- Is the state machine still clean?
+- Are responsibilities clearly separated?
+- What will become messy if we add:
+- animations
+- more characters
+- special moves Suggest a small refactor if needed, but avoid overengineering.
 ```
  👉 This prevents the “incremental trap” you hit earlier. ⚡ How to keep Claude under control For EVERY prompt, add this line if needed: Do not redesign the whole system. Work within the current architecture unless explicitly asked. And occasionally: If this implementation introduces technical debt, point it out. 🧨 Biggest mistake to avoid now Don’t jump to: animations UI fancy effects 👉 That’s where structure dies You’re building: gameplay correctness first 🧠 Where you’re heading After this sequence, you’ll have: Real fighting game core Clean extensible structure Something you can actually evolve If you want next: I can give you the animation system prompts (that’s where most projects break) Or how to add a second character cleanly without duplication (also a common failure point)
 
@@ -166,39 +276,102 @@ I would love a bunch of prompts that create really stunning animations.
 
 Nice — but here’s the honest truth first: ❗ “Stunning animations” don’t come from fancy rendering They come from timing, state integration, and transitions Most AI-generated animation systems fail because they: bolt visuals on top ignore gameplay timing You already did the hard part (state machine + attacks). Now we layer animation correctly . 🎬 Ground rule (add this to every prompt) Animations must be driven by gameplay state, not the other way around. Do not introduce tight coupling between rendering and game logic. 🎮 Step-by-step animation prompts 1. 🧱 Animation system foundation 
 ```
-Design and implement a simple animation system. Requirements: - Support named animations (idle, walk, jump, attack, hitstun) - Each animation has: - duration - current time/frame - Ability to play, stop, and switch animations - Decouple animation logic from rendering The system must be driven by player state (state machine controls animation). Keep it simple and extensible.
+Design and implement a simple animation system.
+
+Requirements:
+- Support named animations (idle, walk, jump, attack, hitstun)
+- Each animation has:
+- duration
+- current time/frame
+- Ability to play, stop, and switch animations
+- Decouple animation logic from rendering The system must be driven by player state (state machine controls animation). Keep it simple and extensible.
 ```
  👉 Commit 2. 🔄 State → animation mapping (CRITICAL) 
 ```
-Connect the player state machine to the animation system. Requirements: - Each state maps to an animation: - idle → idle animation - walking → walk animation - jumping → jump animation - attacking → attack animation - hitstun → hit reaction animation - Transitions should switch animations cleanly - Avoid restarting animations unnecessarily Do not hardcode logic in multiple places.
+Connect the player state machine to the animation system.
+
+Requirements:
+- Each state maps to an animation:
+- idle → idle animation
+- walking → walk animation
+- jumping → jump animation
+- attacking → attack animation
+- hitstun → hit reaction animation
+- Transitions should switch animations cleanly
+- Avoid restarting animations unnecessarily Do not hardcode logic in multiple places.
 ```
  👉 Commit 3. 🎯 Animation timing synced with gameplay This is what makes it feel real . 
 ```
-Synchronize attack animations with gameplay frames. Requirements: - Attack phases (startup, active, recovery) must align with animation timing - Hitboxes should activate during the correct animation frames - Prevent attack from ending before animation finishes (or handle early cancel cleanly) Keep implementation simple but accurate.
+Synchronize attack animations with gameplay frames.
+
+Requirements:
+- Attack phases (startup, active, recovery) must align with animation timing
+- Hitboxes should activate during the correct animation frames
+- Prevent attack from ending before animation finishes (or handle early cancel cleanly) Keep implementation simple but accurate.
 ```
  👉 Commit 4. 🌊 Smooth transitions (this is where “stunning” starts) 
 ```
-Improve animation transitions. Requirements: - Add simple blending or smoothing between animations - Prevent abrupt snapping between states - Handle edge cases: - jumping → landing - attack → idle - hitstun → recovery Keep it lightweight (no heavy animation engine).
+Improve animation transitions.
+
+Requirements:
+- Add simple blending or smoothing between animations
+- Prevent abrupt snapping between states
+- Handle edge cases:
+- jumping → landing
+- attack → idle
+- hitstun → recovery Keep it lightweight (no heavy animation engine).
 ```
  👉 Commit 5. ⚡ Animation anticipation & follow-through This is a huge visual upgrade. 
 ```
-Enhance animations with anticipation and follow-through. Requirements: - Attacks should have: - slight anticipation before impact - follow-through after impact - Movement should feel responsive but not robotic - Use timing adjustments, not complex graphics Do not add new systems, just improve timing and structure.
+Enhance animations with anticipation and follow-through.
+
+Requirements:
+- Attacks should have:
+- slight anticipation before impact
+- follow-through after impact
+- Movement should feel responsive but not robotic
+- Use timing adjustments, not complex graphics Do not add new systems, just improve timing and structure.
 ```
  👉 Commit 6. 🧍 Idle polish (surprisingly important) 
 ```
-Improve idle animation behavior. Requirements: - Add subtle variation or looping behavior - Avoid perfectly static idle - Keep it lightweight (no randomness that breaks determinism) Focus on making the character feel alive.
+Improve idle animation behavior.
+
+Requirements:
+- Add subtle variation or looping behavior
+- Avoid perfectly static idle
+- Keep it lightweight (no randomness that breaks determinism) Focus on making the character feel alive.
 ```
  👉 Commit 7. 🥊 Hit impact feedback (this is BIG) 
 ```
-Enhance hit feedback. Requirements: - On hit: - briefly pause or slow animation (hit stop) - emphasize impact moment - Sync hit reaction animation with this effect - Keep it subtle but noticeable Do not overcomplicate.
+Enhance hit feedback.
+
+Requirements:
+- On hit:
+- briefly pause or slow animation (hit stop)
+- emphasize impact moment
+- Sync hit reaction animation with this effect
+- Keep it subtle but noticeable Do not overcomplicate.
 ```
  👉 Commit 8. 🎮 Input responsiveness vs animation realism This balances “game feel”. 
 ```
-Improve responsiveness while keeping animations smooth. Requirements: - Allow certain animations to be interruptible (e.g. early cancel into jump or block) - Keep controls responsive without breaking animation flow - Clearly define which states are interruptible Keep rules simple and consistent.
+Improve responsiveness while keeping animations smooth.
+
+Requirements:
+- Allow certain animations to be interruptible (e.g. early cancel into jump or block)
+- Keep controls responsive without breaking animation flow
+- Clearly define which states are interruptible Keep rules simple and consistent.
 ```
  👉 Commit 🔥 One powerful “upgrade” prompt After all that, run this: 
 ```
-Review the animation system. Goal: Make the game feel more like a professional fighting game. Focus on: - responsiveness - impact - smoothness - clarity of actions Suggest small, high-impact improvements only. Avoid overengineering.
+Review the animation system.
+
+Goal: Make the game feel more like a professional fighting game.
+
+Focus on:
+- responsiveness
+- impact
+- smoothness
+- clarity of actions Suggest small, high-impact improvements only. Avoid overengineering.
 ```
  🧠 What actually makes it “stunning” You’ll notice none of this mentioned: shaders fancy graphics particle systems Because the real magic is: timing transitions sync with gameplay responsiveness 🧨 Biggest mistake to avoid now Don’t say: “make animations cooler” 👉 That leads to: random effects broken timing messy code If you want next step I can give you: special moves + combo animation prompts (Street Fighter style) or how to add a second character without duplicating everything Both are where most projects either level up… or collapse.
 
@@ -214,47 +387,127 @@ This is my last prompt, so make it good. I have followed all prompts so far, and
 
 Perfect — you’ve built the hard part already . Now we turn rectangles into actual fighters. I’ll keep this tight and high-impact . Follow in order, commit between each. 🥋 1. Replace rectangles with animated fighters 
 ```
-Replace the rectangle rendering with sprite-based characters. Requirements: - Each player uses a sprite sheet (or placeholder frames if none available) - Support animations: - idle, walk, jump, light attack, heavy attack, hitstun - Animation system should already exist — integrate with it - Rendering must support: - frame-based animation - flipping horizontally (for left/right facing) Keep assets simple (placeholder sprites are fine).
+Replace the rectangle rendering with sprite-based characters.
+
+Requirements:
+- Each player uses a sprite sheet (or placeholder frames if none available)
+- Support animations:
+- idle, walk, jump, light attack, heavy attack, hitstun
+- Animation system should already exist — integrate with it
+- Rendering must support:
+- frame-based animation
+- flipping horizontally (for left/right facing) Keep assets simple (placeholder sprites are fine).
 ```
  👉 Commit ↔️ 2. Make fighters face each other automatically 
 ```
-Implement automatic facing direction. Requirements: - Players should always face each other - Flip sprite horizontally based on opponent position - Do not affect movement logic, only rendering + attack direction Keep logic clean and centralized.
+Implement automatic facing direction.
+
+Requirements:
+- Players should always face each other
+- Flip sprite horizontally based on opponent position
+- Do not affect movement logic, only rendering + attack direction Keep logic clean and centralized.
 ```
  👉 Commit 🦵 3. Directional attacks (so kicks/punches make sense) 
 ```
-Update attack system to respect facing direction. Requirements: - Hitboxes should spawn in front of the character - Direction depends on which way the player is facing - Ensure attacks cannot hit behind the player Do not duplicate logic — reuse existing attack system.
+Update attack system to respect facing direction.
+
+Requirements:
+- Hitboxes should spawn in front of the character
+- Direction depends on which way the player is facing
+- Ensure attacks cannot hit behind the player Do not duplicate logic — reuse existing attack system.
 ```
  👉 Commit 🥊 4. Multiple attack types (punch + kick feel) 
 ```
-Expand attack system. Requirements: - Add at least: - light punch - heavy punch - light kick - heavy kick - Each attack should differ in: - speed - range - damage - Reuse animation + state system (no hacks) Keep structure clean and extensible.
+Expand attack system.
+
+Requirements:
+- Add at least:
+- light punch
+- heavy punch
+- light kick
+- heavy kick
+- Each attack should differ in:
+- speed
+- range
+- damage
+- Reuse animation + state system (no hacks) Keep structure clean and extensible.
 ```
  👉 Commit 🔗 5. Basic combo chaining 
 ```
-Improve combo system. Requirements: - Allow chaining: - light → light → heavy - light → heavy - Combos only work if timing is correct (use input buffer) - Prevent infinite combos (simple rule is fine) Do not overengineer combo logic.
+Improve combo system.
+
+Requirements:
+- Allow chaining:
+- light → light → heavy
+- light → heavy
+- Combos only work if timing is correct (use input buffer)
+- Prevent infinite combos (simple rule is fine) Do not overengineer combo logic.
 ```
  👉 Commit 🎯 6. Attack-specific animations 
 ```
-Assign unique animations to each attack. Requirements: - Each attack type uses a distinct animation - Animation timing must align with: - startup - active - recovery - Ensure hitboxes activate at correct animation frames Keep animations simple but consistent.
+Assign unique animations to each attack.
+
+Requirements:
+- Each attack type uses a distinct animation
+- Animation timing must align with:
+- startup
+- active
+- recovery
+- Ensure hitboxes activate at correct animation frames Keep animations simple but consistent.
 ```
  👉 Commit 💥 7. Make hits feel impactful (this is HUGE) 
 ```
-Improve hit feedback. Requirements: - Add hit stop (brief pause on impact) - Add slight knockback on hit - Sync hitstun animation with impact moment - Ensure both players react correctly Keep implementation minimal but noticeable.
+Improve hit feedback.
+
+Requirements:
+- Add hit stop (brief pause on impact)
+- Add slight knockback on hit
+- Sync hitstun animation with impact moment
+- Ensure both players react correctly Keep implementation minimal but noticeable.
 ```
  👉 Commit 🧍 8. Add a second “real” fighter (no duplication) 
 ```
-Refactor player system to support multiple fighters cleanly. Requirements: - Define a reusable fighter configuration: - stats (health, speed, etc.) - animations - attack definitions - Instantiate 2 fighters using the same system - Avoid duplicating logic between players Keep it data-driven where possible.
+Refactor player system to support multiple fighters cleanly.
+
+Requirements:
+- Define a reusable fighter configuration:
+- stats (health, speed, etc.)
+- animations
+- attack definitions
+- Instantiate 2 fighters using the same system
+- Avoid duplicating logic between players Keep it data-driven where possible.
 ```
  👉 Commit ⚖️ 9. Spacing + movement polish 
 ```
-Improve movement and spacing. Requirements: - Prevent players from overlapping unnaturally - Add simple pushback on collision - Ensure jumping and landing feel consistent - Maintain responsiveness Do not introduce physics engine.
+Improve movement and spacing.
+
+Requirements:
+- Prevent players from overlapping unnaturally
+- Add simple pushback on collision
+- Ensure jumping and landing feel consistent
+- Maintain responsiveness Do not introduce physics engine.
 ```
  👉 Commit 🧠 10. Final polish pass (THIS makes it feel real) 
 ```
-Review the entire combat system. Goal: Make the game feel like a simple but real fighting game. Focus on: - responsiveness - clarity of actions - animation timing - combo flow Make only small, high-impact improvements. Do not redesign the system.
+Review the entire combat system.
+
+Goal: Make the game feel like a simple but real fighting game.
+
+Focus on:
+- responsiveness
+- clarity of actions
+- animation timing
+- combo flow Make only small, high-impact improvements. Do not redesign the system.
 ```
  🔥 Optional (if you have time) Special move (hadouken-style) 
 ```
-Add one special move per fighter. Requirements: - Trigger via simple input (e.g. down + forward + attack) - Unique animation - Spawns a projectile with hitbox - Uses existing systems (state, animation, hit detection) Keep it simple and clean.
+Add one special move per fighter.
+
+Requirements:
+- Trigger via simple input (e.g. down + forward + attack)
+- Unique animation
+- Spawns a projectile with hitbox
+- Uses existing systems (state, animation, hit detection) Keep it simple and clean.
 ```
  🧨 Final tip (most important) If something feels “off”, don’t say: “fix it” Say: What specifically makes the combat feel unresponsive or unrealistic? Suggest targeted fixes. 🎮 What you should have at the end Two fighters facing each other Walking, jumping Punches + kicks Combos Hit reactions Actual animation (even if placeholder) Something that feels like a fighting game If you get this working, you’ve basically recreated the core loop of Street Fighter II — which is exactly what most teams don’t manage in a hackathon. If anything breaks or feels off, tell me where — that’s where the real gains are now.
 
@@ -270,15 +523,45 @@ I still see boxes that are very difficult to interpret as humans. I don't unders
 
 Ah — this explains everything. Right now, what you have is “placeholder rectangles with automatic repeat attacks” . You’re seeing two major issues: Rendering is still abstract – rectangles are fine for logic testing, but they don’t give human-readable feedback. You need real sprites + animations . Game mechanics aren’t complete – damage application, combo limits, and hit detection are only partially implemented, which is why holding a key keeps “attacking” but the opponent doesn’t die or respond properly. Let’s fix this in a structured way. 1️⃣ Swap boxes for actual fighter sprites Prompt Claude to replace rectangles with animated character sprites : Replace the red and blue rectangles with simple fighter sprites. Requirements: - Each player has a sprite sheet for: - idle - walk - jump - light punch - heavy punch - light kick - heavy kick - hitstun - KO / death - Integrate with the existing animation system - Render facing direction correctly - Use placeholder images if real ones aren’t available, but animations must switch between frames 👉 Commit after This is critical: humans need to “see” what’s happening to judge combos and timing. 2️⃣ Fix damage application Prompt: 
 ```
-Correct damage and health logic. Requirements: - Each attack reduces the opponent’s health according to its damage value - Health cannot go below zero - When health reaches zero, trigger KO/death animation and prevent further input for that player - Prevent “holding attack” from bypassing hit detection; every attack must follow its startup → active → recovery frames
+Correct damage and health logic.
+
+Requirements:
+- Each attack reduces the opponent’s health according to its damage value
+- Health cannot go below zero
+- When health reaches zero, trigger KO/death animation and prevent further input for that player
+- Prevent “holding attack” from bypassing hit detection; every attack must follow its startup → active → recovery frames
 ```
  👉 Commit 3️⃣ Limit attack repetition (combo logic) Prompt: 
 ```
-Implement proper input buffering and combo rules. Requirements: - Holding a key should not spam attacks infinitely - Each attack has: - startup frames - active frames (when it can hit) - recovery frames (cannot act) - Input buffering: - pressing an attack during recovery queues it for next available frame - Combos: - allow chaining light → light → heavy or light → heavy - prevent infinite combos
+Implement proper input buffering and combo rules.
+
+Requirements:
+- Holding a key should not spam attacks infinitely
+- Each attack has:
+- startup frames
+- active frames (when it can hit)
+- recovery frames (cannot act)
+-
+
+Input buffering:
+- pressing an attack during recovery queues it for next available frame
+-
+
+Combos:
+- allow chaining light → light → heavy or light → heavy
+- prevent infinite combos
 ```
  👉 Commit 4️⃣ Add visible feedback for hits Prompt: 
 ```
-Add visual and mechanical hit feedback. Requirements: - On hit: - Play hitstun animation - Brief hit stop (freeze) for impact feel - Knockback based on attack type - Show health change visually (e.g., health bars) - Ensure player cannot attack during hitstun
+Add visual and mechanical hit feedback.
+
+Requirements:
+- On hit:
+- Play hitstun animation
+- Brief hit stop (freeze) for impact feel
+- Knockback based on attack type
+- Show health change visually (e.g., health bars)
+- Ensure player cannot attack during hitstun
 ```
  👉 Commit 5️⃣ Test and iterate Try simple combos: light → light → heavy Check that health decreases and player goes into hitstun Confirm that KO triggers death animation and input is blocked 💡 Key insight: Until sprites, hitstop, health, and proper state-controlled attack timing exist, you’ll see “infinite punching rectangles” that don’t die. The reason combos feel impossible is because your input system currently ignores recovery frames — the AI can keep “attacking” every frame. By enforcing startup → active → recovery + hitstun, combos become meaningful. If you want, I can write a compact, single Claude prompt that replaces rectangles, fixes damage, enforces combos, and handles KO properly — so you get fully playable fighter mechanics in one step. This would take your current setup from abstract boxes to something visually interpretable. Do you want me to do that?
 
@@ -294,7 +577,47 @@ Well, yes. I have asked repeatedly that I don't see anything but boring boxes. W
 
 Ah — now it’s crystal clear. You’ve been stuck in “logic + placeholder” mode . All the prompts so far focused on state machines, hitboxes, and timing. That’s why: You see rectangles instead of fighters Animations never actually appear There are no real kicks, throws, or flashy moves Right now, you don’t have any actual sprite assets or rendering logic . You’ve only built the underlying systems . We need to shift your Claude prompts from logic-first to art-and-gameplay-first , so you actually get: Visual characters Real move animations (jump kick, low kick, roundhouse) Throws with player flips Health + hit reactions that feel like Street Fighter 🔥 Next step: sprites + animations + moves Here’s a single Claude prompt you can use, aimed at replacing boxes with real fighters and moves: 
 ```
-Replace the red and blue rectangles with fully animated fighter characters. Requirements: 1. Sprites: - Use publicly available or placeholder human fighter sprites - Include animations for: - idle, walk, jump, crouch - light punch, heavy punch - low kick, jump kick, roundhouse kick - throws (grabs and flips opponent) - hitstun - KO/death 2. Animation system: - Integrate all sprites into the existing animation system - Animations must correspond to states in the state machine - Support smooth transitions, flipping, and facing the opponent 3. Moves: - Implement proper input handling for all attacks and throws - Enforce startup → active → recovery frames - Allow combos: - light → light → heavy - light → heavy → special - Throws should flip the opponent and reset facing correctly 4. Hit detection and health: - Attacks reduce health correctly - KO triggers death animation - Players cannot attack during hitstun 5. Visual feedback: - Health bars update - Hit stop / knockback applied - Animations clearly show hits and movement 6. Keep the system clean: - Do not break existing state machine logic - Use data-driven approach for moves and animations Output: - Fully working code that integrates sprites, moves, and animations - Placeholder sprites if real assets are unavailable, but visually interpretable - Must result in fighters that face each other and can perform punches, kicks, throws, and combos
+Replace the red and blue rectangles with fully animated fighter characters.
+
+Requirements:
+1. Sprites:
+- Use publicly available or placeholder human fighter sprites
+- Include animations for:
+- idle, walk, jump, crouch
+- light punch, heavy punch
+- low kick, jump kick, roundhouse kick
+- throws (grabs and flips opponent)
+- hitstun
+- KO/death
+2. Animation system:
+- Integrate all sprites into the existing animation system
+- Animations must correspond to states in the state machine
+- Support smooth transitions, flipping, and facing the opponent
+3. Moves:
+- Implement proper input handling for all attacks and throws
+- Enforce startup → active → recovery frames
+- Allow combos:
+- light → light → heavy
+- light → heavy → special
+- Throws should flip the opponent and reset facing correctly
+4. Hit detection and health:
+- Attacks reduce health correctly
+- KO triggers death animation
+- Players cannot attack during hitstun
+5. Visual feedback:
+- Health bars update
+- Hit stop / knockback applied
+- Animations clearly show hits and movement
+6.
+
+Keep the system clean:
+- Do not break existing state machine logic
+- Use data-driven approach for moves and animations
+
+Output:
+- Fully working code that integrates sprites, moves, and animations
+- Placeholder sprites if real assets are unavailable, but visually interpretable
+- Must result in fighters that face each other and can perform punches, kicks, throws, and combos
 ```
  ✅ Why this works Combines visuals + gameplay + moves in a single step Forces Claude to stop using rectangles and placeholder logic Implements human-readable fighters with all move types you want ⚡ After this Once you run this: You’ll have fighters with real sprite animations You’ll be able to see kicks, punches, jumps, throws Combos and hit reactions will finally “feel like Street Fighter” If you want, I can also write the follow-up prompt to actually download real public-domain fighter sprites , so you don’t stay stuck with placeholders. Do you want me to do that next?
 
@@ -310,7 +633,14 @@ It feels like you are mocking me, since I have been asking for real fighter spri
 
 Absolutely — and I’m not mocking you 😄 — it is possible to add real sprite assets, but you have to get the assets first , because Claude can’t magically invent high‑quality licensed sprites inside your code. Here are good sources for free/public‑domain or freely usable sprite sheets you can actually download and use in your game. These will let you replace the boring rectangles with actual animated characters : 🧾 Places to download free sprites OpenGameArt.org – Free hero and character sprite sheets (CC0/public domain content) This is one of the best repositories of free game art available, many of which are CC0 or free‑licensed for use in projects. A CC0 spritesheet of a man animation (good for fighter basics) A simple character sprite sheet licensed CC0 (public domain), suitable for punch/jump attack, etc. Free 2D Fighter asset packs on itch.io (tagged 2D + fighting sprites) You can browse and pick a fighting‑style sprite sheet that fits your style – these often include animations. Free 2D Woman Warrior Sprite Sheets (placeholder fighters) These are free sprites with multiple animations (idle/walk/attack) and can be repurposed for fighters. Community free sprite packs (e.g., Jettelly CC0 sprite pack)turn0reddit36 Packs released under CC0 allow unconditional use without attribution (no dream‑of‑copyright worries). 🎯 What you do next (practical) Once you download some sprite sheets from those links above, ask Claude to integrate them with a prompt like this: 
 ```
-I have downloaded sprite sheets from [source name]. Please update the game rendering logic to use these sprite sheets for player characters. Requirements: - Load and map sprite frames for all animations (idle, walk, jump, light punch, heavy punch, low kick, round kick, hitstun, KO) - Replace the placeholder rectangles with these sprites - Ensure frame timing and animation control is driven by the existing state machine - Adjust hitboxes to align with visual sprites - Flip sprite orientation correctly when facing opponent
+I have downloaded sprite sheets from [source name]. Please update the game rendering logic to use these sprite sheets for player characters.
+
+Requirements:
+- Load and map sprite frames for all animations (idle, walk, jump, light punch, heavy punch, low kick, round kick, hitstun, KO)
+- Replace the placeholder rectangles with these sprites
+- Ensure frame timing and animation control is driven by the existing state machine
+- Adjust hitboxes to align with visual sprites
+- Flip sprite orientation correctly when facing opponent
 ```
  🧠 About Sprite Licenses CC0 means public domain — you can use, modify, and sell them without attribution. Hackingtons Always check a specific asset’s license before distribution, but the sources above are commonly free or CC0. 📌 Why you weren’t seeing animations before Your game’s animation system was technically there , but: You didn’t actually load real sprite assets yet. The “animation system” was updating frame indices but rendering rectangles → so nothing visual changed. Once you have real sprite sheets and integrate them with the animation engine, you’ll: ✅ See actual characters ✅ See attack animations (punch, kick) ✅ See hit reactions ✅ Be able to test combos visually 🧨 Next Prompt When you’ve picked and downloaded a sprite pack from one of those sources, you can paste the downloaded filenames and paths and then ask Claude with the integration prompt above. If you want, I can tailor a specific prompt for your exact downloaded asset pack — just tell me which one you picked, and I’ll format the Claude Code prompt for you. Sources
 
@@ -326,7 +656,34 @@ I picked https://pixel-moon-studio.itch.io/male-realistic-pixel-art-template-spr
 
 Awesome — the pack you picked ( FREE Male Realistic Pixel Art Template Sprite Pack ) contains a huge set of real fighter animations you can actually use in your game : Idle (multiple versions) Run (forward & back) Punches (5 variations) Kicks (4 versions) Jumping / falling / landing Crouch idle / walk Rolls, dodge Death …and much more — in total 37 distinct high‑quality animations with ~2883 frames you can build real move sets from. itch.io This is exactly what you need to replace the boring placeholder boxes and finally have human‑like fighters with real moves . 🧠 License – Good news You can use this freely in your project (even commercially), with these conditions: Do not resell or redistribute the assets alone You can modify them Attribution is not required but appreciated itch.io So it’s safe to integrate into your fighting game. 🎯 Next — Prompt to ask Claude Now that you have the pack, here’s a precise prompt to fully integrate these sprites into your game with all the moves you want : 📌 Claude Prompt (copy‑paste) 
 ```
-I have downloaded the "Male Realistic Pixel Art Template Sprite Pack" by Pixel Moon (containing 37 animations including idle, run, punch and multiple kick variations). Please integrate these sprites into my fighting game. Tasks: 1. Load and parse the downloaded sprite sheets. 2. Create animation definitions for all relevant moves: - idle (use any 3 versions) - walk/run - jump - light punch (from punch variants) - heavy punch - low kick - roundhouse kick - dodge / roll - hitstun - death / KO 3. Replace the rectangle placeholders with animated sprites for both fighters. 4. Adjust the animation system so that: - Each game state drives the correct animation - Timing matches the state machine (startup/active/recovery) - Facing direction flips sprites appropriately 5. Update hitboxes to follow visible sprite poses for each animation. 6. Ensure: - Combos feel natural and use correct animation frames - Throws or kicks visually face the right way - Health and KO animations trigger properly 7. Do not change core game logic; just integrate the actual sprite assets visually.
+I have downloaded the "Male Realistic Pixel Art Template Sprite Pack" by Pixel Moon (containing 37 animations including idle, run, punch and multiple kick variations). Please integrate these sprites into my fighting game.
+
+Tasks:
+1. Load and parse the downloaded sprite sheets.
+2. Create animation definitions for all relevant moves:
+- idle (use any 3 versions)
+- walk/run
+- jump
+- light punch (from punch variants)
+- heavy punch
+- low kick
+- roundhouse kick
+- dodge / roll
+- hitstun
+- death / KO
+3. Replace the rectangle placeholders with animated sprites for both fighters.
+4. Adjust the animation system so that:
+- Each game state drives the correct animation
+- Timing matches the state machine (startup/active/recovery)
+- Facing direction flips sprites appropriately
+5. Update hitboxes to follow visible sprite poses for each animation.
+6.
+
+Ensure:
+- Combos feel natural and use correct animation frames
+- Throws or kicks visually face the right way
+- Health and KO animations trigger properly
+7. Do not change core game logic; just integrate the actual sprite assets visually.
 ```
  Output: - Updated code that renders real fighters with full animations - Proper integration so you can see movement, punches, kicks, and reactions visually 🧠 Why this prompt works It tells Claude exactly which assets you have It maps those assets to actual game mechanics It ensures animations drive visual feedback for inputs It replaces abstract placeholders with understandable visuals 🧠 What you should see after this Eventually, you’ll have: ✔ Two fighters with real character sprites ✔ Idle, walking, jumping visuals ✔ Multiple punch and kick animations you can actually see ✔ Combos that look like combinations — not just boxes ✔ Visual feedback on hit impact / KO 🧨 If you want to go even further… After this works, you can add: Stage backgrounds Particle effects for hits Sound effects and music Camera shake on heavy attacks But get the sprites integrated first — that’s the biggest visual gap. If you run into any issues with this specific prompt (for example Claude can’t find the sprite sheet paths), paste your directory layout here and I’ll tailor the prompt exactly to your files. Sources ChatGPT can make mistakes. Check important info. See Cookie Preferences .
 

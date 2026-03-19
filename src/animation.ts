@@ -1,4 +1,4 @@
-import { FighterState, CHARACTERS } from "./types.js";
+import { FighterState, CHARACTERS, MoveData } from "./types.js";
 
 // -- Animation types --
 
@@ -17,6 +17,7 @@ export type AnimationFrame = {
   loop: boolean;
   phase: AttackPhase | null;
   blend: number;         // 0 = just transitioned, 1 = fully settled
+  characterId: string;   // for move data lookup in squash/stretch
 };
 
 // -- Squash/stretch for visual transitions --
@@ -59,7 +60,7 @@ export function deriveAnimation(f: FighterState): AnimationFrame {
   const animName = STATE_TO_ANIM[f.state] ?? f.state;
   const def = charAnims?.[animName] ?? DEFAULT_ANIMATIONS[animName];
   if (!def) {
-    return { name: animName, frame: 0, totalFrames: 1, loop: false, phase: null, blend: 1 };
+    return { name: animName, frame: 0, totalFrames: 1, loop: false, phase: null, blend: 1, characterId: f.characterId };
   }
 
   const gameFrame = f.stateFrame;
@@ -78,6 +79,7 @@ export function deriveAnimation(f: FighterState): AnimationFrame {
     loop: def.loop,
     phase: null,
     blend,
+    characterId: f.characterId,
   };
 }
 
@@ -95,7 +97,8 @@ const ATTACK_PHASE_SS: Record<AttackPhase, SquashStretch> = {
 export function deriveSquashStretch(anim: AnimationFrame, stateFrame: number): SquashStretch {
   // Attack phases: per-phase squash/stretch with easing within each phase
   if (anim.phase) {
-    return deriveAttackSS(anim);
+    const moveDef = CHARACTERS[anim.characterId ?? ""]?.moves[anim.name];
+    return deriveAttackSS(anim, stateFrame, moveDef);
   }
 
   // Cyclic idle breathing
@@ -127,10 +130,17 @@ export function deriveSquashStretch(anim: AnimationFrame, stateFrame: number): S
   return NEUTRAL;
 }
 
-function deriveAttackSS(anim: AnimationFrame): SquashStretch {
+function deriveAttackSS(anim: AnimationFrame, stateFrame: number, moveDef?: MoveData): SquashStretch {
   const target = ATTACK_PHASE_SS[anim.phase!];
-  // Quick ease into each phase's pose over ~3 frames
-  const phaseProgress = Math.min(1, (anim.frame % 4) / 3);
+
+  // Compute phase-local frame for smooth easing within each phase
+  let phaseLocalFrame = stateFrame;
+  if (moveDef) {
+    if (anim.phase === "active") phaseLocalFrame = stateFrame - moveDef.startup;
+    else if (anim.phase === "recovery") phaseLocalFrame = stateFrame - moveDef.startup - moveDef.active;
+  }
+
+  const phaseProgress = Math.min(1, phaseLocalFrame / 3);
   const ease = phaseProgress * (2 - phaseProgress);
   return {
     scaleX: 1 + (target.scaleX - 1) * ease,
@@ -148,7 +158,7 @@ function deriveAttackAnimation(
   const moveId = f.activeMove!;
   const moveDef = CHARACTERS[f.characterId]?.moves[moveId];
   if (!moveDef) {
-    return { name: moveId, frame: 0, totalFrames: 1, loop: false, phase: null, blend: 1 };
+    return { name: moveId, frame: 0, totalFrames: 1, loop: false, phase: null, blend: 1, characterId: f.characterId };
   }
 
   const { startup, active, recovery } = moveDef;
@@ -178,7 +188,7 @@ function deriveAttackAnimation(
   }
 
   // Attacks snap instantly (blend=1) — timing is gameplay-critical
-  return { name: moveId, frame, totalFrames, loop: false, phase, blend: 1 };
+  return { name: moveId, frame, totalFrames, loop: false, phase, blend: 1, characterId: f.characterId };
 }
 
 // -- State-to-animation name mapping --

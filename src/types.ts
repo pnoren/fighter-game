@@ -26,6 +26,7 @@ export type MoveData = {
   damage: number;
   hitstun: number;
   hitstop: number;
+  knockback: number;
   hitbox: { offsetX: number; offsetY: number; w: number; h: number };
 };
 
@@ -47,8 +48,8 @@ export const CHARACTERS: Record<string, CharacterDef> = {
     airControl: 0.3,
     airMaxSpeed: 3,
     moves: {
-      light:  { startup: 4, active: 3, recovery: 8,  damage: 5,  hitstun: 12, hitstop: 4,  hitbox: { offsetX: 25, offsetY: 30, w: 50, h: 20 } },
-      heavy:  { startup: 8, active: 4, recovery: 16, damage: 12, hitstun: 20, hitstop: 7, hitbox: { offsetX: 20, offsetY: 15, w: 60, h: 30 } },
+      light:  { startup: 4, active: 3, recovery: 8,  damage: 5,  hitstun: 12, hitstop: 4, knockback: 3,  hitbox: { offsetX: 25, offsetY: 30, w: 50, h: 20 } },
+      heavy:  { startup: 8, active: 4, recovery: 16, damage: 12, hitstun: 20, hitstop: 7, knockback: 7, hitbox: { offsetX: 20, offsetY: 15, w: 60, h: 30 } },
     },
   },
 };

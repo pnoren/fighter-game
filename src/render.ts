@@ -14,6 +14,23 @@ import { deriveAnimation, deriveSquashStretch } from "./animation.js";
 
 const COLORS = ["#3498db", "#e74c3c"];
 
+function parseHex(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
+}
+
+function lightenColor(hex: string, amount: number): string {
+  const [r, g, b] = parseHex(hex);
+  const l = (v: number) => Math.min(255, Math.round(v + (255 - v) * amount));
+  return `rgb(${l(r)},${l(g)},${l(b)})`;
+}
+
+function darkenColor(hex: string, amount: number): string {
+  const [r, g, b] = parseHex(hex);
+  const d = (v: number) => Math.round(v * (1 - amount));
+  return `rgb(${d(r)},${d(g)},${d(b)})`;
+}
+
 function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color: string, hitstop: number): void {
   const isCrouching = fighter.state === "crouching";
   const baseH = isCrouching ? CROUCH_HEIGHT : FIGHTER_HEIGHT;
@@ -31,9 +48,19 @@ function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color
   const x = fighter.position.x - w / 2 + ss.leanX * fighter.facing;
   const y = baseBottom - h;
 
-  // Body — flash white on hitstop for defender (in hitstun)
+  // Body — state-based color tinting
   const isHitFlash = hitstop > 0 && fighter.state === "hitstun" && fighter.stateFrame === 0;
-  ctx.fillStyle = isHitFlash ? "#fff" : color;
+  let bodyColor = color;
+  if (isHitFlash) {
+    bodyColor = "#fff";
+  } else if (anim.phase === "active") {
+    bodyColor = lightenColor(color, 0.35);
+  } else if (fighter.state === "hitstun") {
+    bodyColor = darkenColor(color, 0.3);
+  } else if (anim.phase === "recovery") {
+    bodyColor = darkenColor(color, 0.15);
+  }
+  ctx.fillStyle = bodyColor;
   ctx.fillRect(x, y, w, h);
 
   // Facing indicator (small triangle on the front side)
@@ -109,7 +136,7 @@ function drawHealthBars(ctx: CanvasRenderingContext2D, fighters: [FighterState, 
 
 export function render(ctx: CanvasRenderingContext2D, state: GameState): void {
   // Screen shake during hitstop
-  const shakeIntensity = state.hitstop > 0 ? Math.min(state.hitstop, 4) : 0;
+  const shakeIntensity = state.hitstop > 0 ? state.hitstop * 0.8 : 0;
   const shakeX = shakeIntensity > 0 ? Math.sin(state.frame * 17) * shakeIntensity : 0;
   const shakeY = shakeIntensity > 0 ? Math.cos(state.frame * 13) * shakeIntensity * 0.5 : 0;
 

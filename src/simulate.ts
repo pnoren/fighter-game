@@ -195,7 +195,9 @@ const FSM: Record<StateId, StateHandler> = {
       if (input.left || input.right) return enter(f, "walking", input, { comboCount: 0 });
     }
 
-    return tick(f, input, { velocity: { x: 0, y: 0 } });
+    // Friction: slide to a stop
+    const vx = f.velocity.x * 0.85;
+    return tick(f, input, { velocity: { x: Math.abs(vx) < 0.1 ? 0 : vx, y: 0 } });
   },
 };
 
@@ -315,6 +317,9 @@ function applyHit(
     `${attackerLabel} ${attacker.activeMove} hit: ${defender.health} → ${newHealth} (-${damage}) combo:${combo} scale:${(scale * 100).toFixed(0)}%`,
   );
 
+  // Knockback: push defender away from attacker
+  const kb = move.knockback * attacker.facing;
+
   return [
     { ...attacker, hitConfirmed: true },
     {
@@ -324,7 +329,7 @@ function applyHit(
       stateFrame: 0,
       hitstunDuration: hitstun,
       comboCount: combo,
-      velocity: { x: 0, y: 0 },
+      velocity: { x: kb, y: 0 },
       activeMove: null,
     },
   ];

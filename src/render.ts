@@ -14,7 +14,7 @@ import { deriveAnimation, deriveSquashStretch } from "./animation.js";
 
 const COLORS = ["#3498db", "#e74c3c"];
 
-function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color: string): void {
+function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color: string, hitstop: number): void {
   const isCrouching = fighter.state === "crouching";
   const baseH = isCrouching ? CROUCH_HEIGHT : FIGHTER_HEIGHT;
   const yOffset = isCrouching ? FIGHTER_HEIGHT - CROUCH_HEIGHT : 0;
@@ -31,8 +31,9 @@ function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color
   const x = fighter.position.x - w / 2 + ss.leanX * fighter.facing;
   const y = baseBottom - h;
 
-  // Body
-  ctx.fillStyle = color;
+  // Body — flash white on hitstop for defender (in hitstun)
+  const isHitFlash = hitstop > 0 && fighter.state === "hitstun" && fighter.stateFrame === 0;
+  ctx.fillStyle = isHitFlash ? "#fff" : color;
   ctx.fillRect(x, y, w, h);
 
   // Facing indicator (small triangle on the front side)
@@ -107,17 +108,25 @@ function drawHealthBars(ctx: CanvasRenderingContext2D, fighters: [FighterState, 
 }
 
 export function render(ctx: CanvasRenderingContext2D, state: GameState): void {
+  // Screen shake during hitstop
+  const shakeIntensity = state.hitstop > 0 ? Math.min(state.hitstop, 4) : 0;
+  const shakeX = shakeIntensity > 0 ? Math.sin(state.frame * 17) * shakeIntensity : 0;
+  const shakeY = shakeIntensity > 0 ? Math.cos(state.frame * 13) * shakeIntensity * 0.5 : 0;
+
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+
   // Clear
   ctx.fillStyle = "#1a1a2e";
-  ctx.fillRect(0, 0, STAGE_WIDTH, STAGE_HEIGHT);
+  ctx.fillRect(-10, -10, STAGE_WIDTH + 20, STAGE_HEIGHT + 20);
 
   // Floor
   ctx.fillStyle = "#2d2d44";
   ctx.fillRect(0, STAGE_FLOOR, STAGE_WIDTH, STAGE_HEIGHT - STAGE_FLOOR);
 
   // Fighters
-  drawFighter(ctx, state.fighters[0], COLORS[0]);
-  drawFighter(ctx, state.fighters[1], COLORS[1]);
+  drawFighter(ctx, state.fighters[0], COLORS[0], state.hitstop);
+  drawFighter(ctx, state.fighters[1], COLORS[1], state.hitstop);
 
   // Health bars
   drawHealthBars(ctx, state.fighters);
@@ -138,4 +147,6 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState): void {
   ctx.font = "12px monospace";
   ctx.textAlign = "left";
   ctx.fillText(`frame: ${state.frame}`, 8, 18);
+
+  ctx.restore();
 }

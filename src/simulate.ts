@@ -295,27 +295,43 @@ function applyHit(
   ];
 }
 
-function resolveHits(f0: FighterState, f1: FighterState): [FighterState, FighterState] {
+function resolveHitsWithStop(f0: FighterState, f1: FighterState): [FighterState, FighterState, number] {
   const h0 = deriveHitbox(f0);
   const h1 = deriveHitbox(f1);
   const hurt0 = deriveHurtbox(f0);
   const hurt1 = deriveHurtbox(f1);
+  let hitstop = 0;
 
   if (h0 && rectsOverlap(h0, hurt1)) {
     const move = moveData(f0);
-    if (move) [f0, f1] = applyHit(f0, f1, move, "P1");
+    if (move) {
+      [f0, f1] = applyHit(f0, f1, move, "P1");
+      hitstop = Math.max(hitstop, move.hitstop);
+    }
   }
   if (h1 && rectsOverlap(h1, hurt0)) {
     const move = moveData(f1);
-    if (move) [f1, f0] = applyHit(f1, f0, move, "P2");
+    if (move) {
+      [f1, f0] = applyHit(f1, f0, move, "P2");
+      hitstop = Math.max(hitstop, move.hitstop);
+    }
   }
 
-  return [f0, f1];
+  return [f0, f1, hitstop];
 }
 
 // -- Top-level simulate: pure (GameState, Inputs) → GameState --
 
 export function simulate(state: GameState, inputs: [Input, Input]): GameState {
+  // Hitstop: freeze both fighters, just decrement the counter
+  if (state.hitstop > 0) {
+    // Still buffer inputs during hitstop so buffered attacks feel responsive
+    let [f0, f1] = state.fighters;
+    f0 = bufferInput(f0, inputs[0], state.frame);
+    f1 = bufferInput(f1, inputs[1], state.frame);
+    return { frame: state.frame + 1, fighters: [f0, f1], hitstop: state.hitstop - 1 };
+  }
+
   let [f0, f1] = state.fighters;
 
   // Buffer attack inputs
@@ -335,7 +351,8 @@ export function simulate(state: GameState, inputs: [Input, Input]): GameState {
   f1 = integrate(f1);
 
   // Hit detection
-  [f0, f1] = resolveHits(f0, f1);
+  let hitstop = 0;
+  [f0, f1, hitstop] = resolveHitsWithStop(f0, f1);
 
   // Pushbox
   [f0, f1] = resolvePush(f0, f1);
@@ -344,5 +361,5 @@ export function simulate(state: GameState, inputs: [Input, Input]): GameState {
   f0 = updateFacing(f0, f1);
   f1 = updateFacing(f1, f0);
 
-  return { frame: state.frame + 1, fighters: [f0, f1] };
+  return { frame: state.frame + 1, fighters: [f0, f1], hitstop };
 }

@@ -39,6 +39,7 @@ const INITIAL_STATE: GameState = {
     createFighter(STAGE_WIDTH * 0.3, 1, "fighter"),
     createFighter(STAGE_WIDTH * 0.7, -1, "fighter"),
   ],
+  hitstop: 0,
 };
 
 // -- Bootstrap --

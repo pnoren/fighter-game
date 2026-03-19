@@ -2,6 +2,7 @@ import {
   FighterState,
   GameState,
   Input,
+  StateId,
   GRAVITY,
   WALK_SPEED,
   JUMP_VELOCITY,
@@ -13,79 +14,97 @@ import {
   FIGHTER_HEIGHT,
 } from "./types.js";
 
-// -- Pure state transition --
+// -- FSM helpers --
 
-function transitionState(fighter: FighterState, input: Input): FighterState {
-  const { state, grounded, jumpHeld } = fighter;
-
-  // Track whether up is held (must release before jumping again)
-  const newJumpHeld = input.up;
-
-  // Airborne — just tick stateFrame
-  if (!grounded) {
-    return { ...fighter, stateFrame: fighter.stateFrame + 1, jumpHeld: newJumpHeld };
-  }
-
-  // Jump — only on fresh press (not held from previous frame)
-  if (input.up && !jumpHeld && grounded) {
-    return {
-      ...fighter,
-      state: "jump",
-      stateFrame: 0,
-      velocity: { x: fighter.velocity.x, y: JUMP_VELOCITY },
-      grounded: false,
-      jumpHeld: true,
-    };
-  }
-
-  // Crouch
-  if (input.down && grounded) {
-    if (state !== "crouch") {
-      return { ...fighter, state: "crouch", stateFrame: 0, jumpHeld: newJumpHeld };
-    }
-    return { ...fighter, stateFrame: fighter.stateFrame + 1, jumpHeld: newJumpHeld };
-  }
-
-  // Walk
-  if (input.left || input.right) {
-    if (state !== "walk") {
-      return { ...fighter, state: "walk", stateFrame: 0, jumpHeld: newJumpHeld };
-    }
-    return { ...fighter, stateFrame: fighter.stateFrame + 1, jumpHeld: newJumpHeld };
-  }
-
-  // Idle
-  if (state !== "idle") {
-    return { ...fighter, state: "idle", stateFrame: 0, jumpHeld: newJumpHeld };
-  }
-  return { ...fighter, stateFrame: fighter.stateFrame + 1, jumpHeld: newJumpHeld };
+function enter(f: FighterState, state: StateId, input: Input, extra?: Partial<FighterState>): FighterState {
+  return { ...f, state, stateFrame: 0, jumpHeld: input.up, ...extra };
 }
 
-// -- Pure movement --
+function tick(f: FighterState, input: Input, extra?: Partial<FighterState>): FighterState {
+  return { ...f, stateFrame: f.stateFrame + 1, jumpHeld: input.up, ...extra };
+}
 
-function applyMovement(fighter: FighterState, input: Input): FighterState {
-  // Air control — nudge horizontal velocity, clamped
-  if (!fighter.grounded) {
-    let vx = fighter.velocity.x;
+function wantsJump(f: FighterState, input: Input): boolean {
+  return input.up && !f.jumpHeld && f.grounded;
+}
+
+// -- FSM state handlers: each returns updated FighterState --
+
+type StateHandler = (f: FighterState, input: Input) => FighterState;
+
+const FSM: Record<StateId, StateHandler> = {
+
+  idle(f, input) {
+    if (wantsJump(f, input)) {
+      return enter(f, "jumping", input, {
+        velocity: { x: f.velocity.x, y: JUMP_VELOCITY },
+        grounded: false,
+      });
+    }
+    if (input.down) return enter(f, "crouching", input, { velocity: { x: 0, y: 0 } });
+    if (input.left || input.right) return enter(f, "walking", input);
+    return tick(f, input);
+  },
+
+  walking(f, input) {
+    if (wantsJump(f, input)) {
+      return enter(f, "jumping", input, {
+        velocity: { x: f.velocity.x, y: JUMP_VELOCITY },
+        grounded: false,
+      });
+    }
+    if (input.down) return enter(f, "crouching", input, { velocity: { x: 0, y: 0 } });
+    if (!input.left && !input.right) return enter(f, "idle", input, { velocity: { x: 0, y: 0 } });
+
+    let vx = 0;
+    if (input.left) vx -= WALK_SPEED;
+    if (input.right) vx += WALK_SPEED;
+    return tick(f, input, { velocity: { x: vx, y: 0 } });
+  },
+
+  jumping(f, input) {
+    // Landed — gravity set grounded=true before FSM runs
+    if (f.grounded) return enter(f, "idle", input, { velocity: { x: 0, y: 0 } });
+
+    // Air control
+    let vx = f.velocity.x;
     if (input.left) vx -= AIR_CONTROL;
     if (input.right) vx += AIR_CONTROL;
     vx = Math.max(-AIR_MAX_SPEED, Math.min(AIR_MAX_SPEED, vx));
-    return { ...fighter, velocity: { x: vx, y: fighter.velocity.y } };
-  }
+    return tick(f, input, { velocity: { x: vx, y: f.velocity.y } });
+  },
 
-  if (fighter.state === "crouch") return { ...fighter, velocity: { x: 0, y: fighter.velocity.y } };
+  crouching(f, input) {
+    if (wantsJump(f, input)) {
+      return enter(f, "jumping", input, {
+        velocity: { x: 0, y: JUMP_VELOCITY },
+        grounded: false,
+      });
+    }
+    if (!input.down) return enter(f, "idle", input);
+    return tick(f, input, { velocity: { x: 0, y: 0 } });
+  },
 
-  let vx = 0;
-  if (input.left) vx -= WALK_SPEED;
-  if (input.right) vx += WALK_SPEED;
+  // Placeholders — no behavior yet, just hold the state
+  attacking(f, input) {
+    return tick(f, input);
+  },
 
-  return { ...fighter, velocity: { x: vx, y: fighter.velocity.y } };
+  hitstun(f, input) {
+    return tick(f, input);
+  },
+};
+
+// -- Pure FSM dispatch --
+
+function fsmUpdate(fighter: FighterState, input: Input): FighterState {
+  return FSM[fighter.state](fighter, input);
 }
 
-// -- Pure gravity + landing --
+// -- Pure gravity + landing (physics only, no state changes) --
 
 function applyGravity(fighter: FighterState): FighterState {
-  if (fighter.grounded && fighter.state !== "jump") return fighter;
+  if (fighter.grounded) return fighter;
 
   const vy = fighter.velocity.y + GRAVITY;
   const y = fighter.position.y + vy;
@@ -97,8 +116,6 @@ function applyGravity(fighter: FighterState): FighterState {
       position: { ...fighter.position, y: STAGE_FLOOR - FIGHTER_HEIGHT },
       velocity: { x: fighter.velocity.x, y: 0 },
       grounded: true,
-      state: "idle",
-      stateFrame: 0,
     };
   }
 
@@ -109,15 +126,12 @@ function applyGravity(fighter: FighterState): FighterState {
   };
 }
 
-// -- Pure position integration + stage bounds --
+// -- Pure position integration (x-axis) + stage bounds --
 
 function integrate(fighter: FighterState): FighterState {
   let x = fighter.position.x + fighter.velocity.x;
-
-  // Clamp to stage
   const halfW = FIGHTER_WIDTH / 2;
   x = Math.max(halfW, Math.min(STAGE_WIDTH - halfW, x));
-
   return { ...fighter, position: { ...fighter.position, x } };
 }
 
@@ -137,7 +151,6 @@ function resolvePush(f0: FighterState, f1: FighterState): [FighterState, Fighter
 
   const push = overlap / 2;
   const sign = f0.position.x < f1.position.x ? -1 : 1;
-
   const clamp = (x: number) => Math.max(halfW, Math.min(STAGE_WIDTH - halfW, x));
 
   return [
@@ -151,19 +164,15 @@ function resolvePush(f0: FighterState, f1: FighterState): [FighterState, Fighter
 export function simulate(state: GameState, inputs: [Input, Input]): GameState {
   let [f0, f1] = state.fighters;
 
-  // State transitions
-  f0 = transitionState(f0, inputs[0]);
-  f1 = transitionState(f1, inputs[1]);
-
-  // Movement
-  f0 = applyMovement(f0, inputs[0]);
-  f1 = applyMovement(f1, inputs[1]);
-
-  // Gravity + landing
+  // Gravity first — so FSM can react to landing
   f0 = applyGravity(f0);
   f1 = applyGravity(f1);
 
-  // Position integration
+  // FSM handles transitions + movement
+  f0 = fsmUpdate(f0, inputs[0]);
+  f1 = fsmUpdate(f1, inputs[1]);
+
+  // Position integration (x-axis)
   f0 = integrate(f0);
   f1 = integrate(f1);
 

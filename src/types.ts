@@ -14,11 +14,13 @@ export const CROUCH_HEIGHT = 80;
 
 // -- Core types --
 
+export type StateId = "idle" | "walking" | "jumping" | "crouching" | "attacking" | "hitstun";
+
 export type FighterState = {
   position: { x: number; y: number };
   velocity: { x: number; y: number };
   facing: 1 | -1;
-  state: "idle" | "walk" | "jump" | "crouch";
+  state: StateId;
   stateFrame: number;
   grounded: boolean;
   jumpHeld: boolean;

@@ -12,7 +12,7 @@ import {
 const COLORS = ["#3498db", "#e74c3c"];
 
 function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color: string): void {
-  const isCrouching = fighter.state === "crouch";
+  const isCrouching = fighter.state === "crouching";
   const h = isCrouching ? CROUCH_HEIGHT : FIGHTER_HEIGHT;
   const yOffset = isCrouching ? FIGHTER_HEIGHT - CROUCH_HEIGHT : 0;
 

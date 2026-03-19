@@ -21,13 +21,14 @@ function drawFighter(ctx: CanvasRenderingContext2D, fighter: FighterState, color
 
   // Squash/stretch from animation blend
   const anim = deriveAnimation(fighter);
-  const ss = deriveSquashStretch(anim);
+  const ss = deriveSquashStretch(anim, fighter.stateFrame);
   const w = FIGHTER_WIDTH * ss.scaleX;
   const h = baseH * ss.scaleY;
 
   // Anchor at feet center: x centered, y pinned to bottom
+  // leanX shifts in facing direction (anticipation/follow-through)
   const baseBottom = fighter.position.y + yOffset + baseH;
-  const x = fighter.position.x - w / 2;
+  const x = fighter.position.x - w / 2 + ss.leanX * fighter.facing;
   const y = baseBottom - h;
 
   // Body

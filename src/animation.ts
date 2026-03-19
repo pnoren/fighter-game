@@ -24,6 +24,7 @@ export type AnimationFrame = {
 export type SquashStretch = {
   scaleX: number;  // width multiplier (>1 = wider)
   scaleY: number;  // height multiplier (>1 = taller)
+  leanX: number;   // horizontal offset in facing direction (pixels)
 };
 
 // Per-state blend-in frames (0 = instant snap)
@@ -39,11 +40,11 @@ const BLEND_FRAMES: Record<string, number> = {
 // Squash/stretch at blend=0 (start of transition into this state)
 // Values interpolate toward {1, 1} as blend reaches 1
 const TRANSITION_SQUASH: Record<string, SquashStretch> = {
-  idle:    { scaleX: 1.1,  scaleY: 0.85 }, // landing squash / recovery settle
-  walk:    { scaleX: 1.0,  scaleY: 0.95 },
-  jump:    { scaleX: 0.85, scaleY: 1.15 }, // launch stretch
-  crouch:  { scaleX: 1.15, scaleY: 0.8  }, // duck squash
-  hitstun: { scaleX: 1.15, scaleY: 0.85 }, // hit impact squash
+  idle:    { scaleX: 1.1,  scaleY: 0.85, leanX: 0 },   // landing squash / recovery settle
+  walk:    { scaleX: 1.0,  scaleY: 0.95, leanX: 0 },
+  jump:    { scaleX: 0.85, scaleY: 1.15, leanX: 0 },   // launch stretch
+  crouch:  { scaleX: 1.15, scaleY: 0.8,  leanX: 0 },   // duck squash
+  hitstun: { scaleX: 1.15, scaleY: 0.85, leanX: -6 },  // knocked back
 };
 
 // -- Pure derivation: game state → animation frame --
@@ -80,21 +81,61 @@ export function deriveAnimation(f: FighterState): AnimationFrame {
   };
 }
 
-// -- Derive squash/stretch from animation blend --
+// -- Derive squash/stretch from animation state --
 
-export function deriveSquashStretch(anim: AnimationFrame): SquashStretch {
-  if (anim.blend >= 1) return { scaleX: 1, scaleY: 1 };
+const NEUTRAL: SquashStretch = { scaleX: 1, scaleY: 1, leanX: 0 };
 
-  const target = TRANSITION_SQUASH[anim.name];
-  if (!target) return { scaleX: 1, scaleY: 1 };
+// Per-attack-phase squash/stretch + lean
+const ATTACK_PHASE_SS: Record<AttackPhase, SquashStretch> = {
+  startup:  { scaleX: 0.9,  scaleY: 1.05, leanX: -4 },  // anticipation: pull back
+  active:   { scaleX: 1.1,  scaleY: 0.95, leanX: 8 },   // impact: extend forward
+  recovery: { scaleX: 1.03, scaleY: 0.98, leanX: 2 },   // follow-through: settling
+};
 
-  // Ease-out: fast at start, settles smoothly
-  const t = anim.blend;
-  const ease = t * (2 - t); // quadratic ease-out
+export function deriveSquashStretch(anim: AnimationFrame, stateFrame: number): SquashStretch {
+  // Attack phases: per-phase squash/stretch with easing within each phase
+  if (anim.phase) {
+    return deriveAttackSS(anim);
+  }
 
+  // Cyclic idle breathing
+  if (anim.name === "idle" && anim.blend >= 1) {
+    const breath = Math.sin(stateFrame * 0.08) * 0.02;
+    return { scaleX: 1 - breath * 0.5, scaleY: 1 + breath, leanX: 0 };
+  }
+
+  // Cyclic walk bob
+  if (anim.name === "walk" && anim.blend >= 1) {
+    const bob = Math.sin(stateFrame * 0.3) * 0.03;
+    return { scaleX: 1, scaleY: 1 + bob, leanX: Math.sin(stateFrame * 0.3) * 1.5 };
+  }
+
+  // Transition blend (landing, crouching, etc.)
+  if (anim.blend < 1) {
+    const target = TRANSITION_SQUASH[anim.name];
+    if (!target) return NEUTRAL;
+
+    const t = anim.blend;
+    const ease = t * (2 - t);
+    return {
+      scaleX: target.scaleX + (1 - target.scaleX) * ease,
+      scaleY: target.scaleY + (1 - target.scaleY) * ease,
+      leanX: (target.leanX ?? 0) * (1 - ease),
+    };
+  }
+
+  return NEUTRAL;
+}
+
+function deriveAttackSS(anim: AnimationFrame): SquashStretch {
+  const target = ATTACK_PHASE_SS[anim.phase!];
+  // Quick ease into each phase's pose over ~3 frames
+  const phaseProgress = Math.min(1, (anim.frame % 4) / 3);
+  const ease = phaseProgress * (2 - phaseProgress);
   return {
-    scaleX: target.scaleX + (1 - target.scaleX) * ease,
-    scaleY: target.scaleY + (1 - target.scaleY) * ease,
+    scaleX: 1 + (target.scaleX - 1) * ease,
+    scaleY: 1 + (target.scaleY - 1) * ease,
+    leanX: target.leanX * ease,
   };
 }
 

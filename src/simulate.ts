@@ -235,10 +235,12 @@ function resolveHits(f0: FighterState, f1: FighterState): [FighterState, Fighter
   // Check f0 hitting f1
   if (h0 && rectsOverlap(h0, hurt1)) {
     const move = MOVES[f0.activeMove!];
+    const newHealth = Math.max(0, f1.health - move.damage);
+    console.log(`P1 ${f0.activeMove} hit P2: ${f1.health} → ${newHealth} (-${move.damage})`);
     f0 = { ...f0, hitConfirmed: true };
     f1 = {
       ...f1,
-      health: Math.max(0, f1.health - move.damage),
+      health: newHealth,
       state: "hitstun",
       stateFrame: 0,
       hitstunDuration: move.hitstun,
@@ -250,10 +252,12 @@ function resolveHits(f0: FighterState, f1: FighterState): [FighterState, Fighter
   // Check f1 hitting f0
   if (h1 && rectsOverlap(h1, hurt0)) {
     const move = MOVES[f1.activeMove!];
+    const newHealth = Math.max(0, f0.health - move.damage);
+    console.log(`P2 ${f1.activeMove} hit P1: ${f0.health} → ${newHealth} (-${move.damage})`);
     f1 = { ...f1, hitConfirmed: true };
     f0 = {
       ...f0,
-      health: Math.max(0, f0.health - move.damage),
+      health: newHealth,
       state: "hitstun",
       stateFrame: 0,
       hitstunDuration: move.hitstun,
